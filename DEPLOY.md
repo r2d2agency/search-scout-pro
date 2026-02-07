@@ -1,6 +1,7 @@
 # Lead Extractor - SERP + Evolution API
 
 Sistema de extração de leads via SERP API com verificação de WhatsApp via Evolution API.
+**Sistema Multi-usuário com Planos de Assinatura.**
 
 ## 🚀 Deploy na Easypanel
 
@@ -27,6 +28,9 @@ SERP_API_KEY=sua_chave_serp
 EVOLUTION_API_URL=https://sua-evolution.com
 EVOLUTION_API_KEY=sua_chave_evolution
 EVOLUTION_INSTANCE=nome_instancia
+
+# JWT Secret para autenticação
+JWT_SECRET=sua_chave_secreta_jwt
 ```
 
 ### Dockerfile
@@ -72,45 +76,51 @@ server {
 
 ## 📊 Estrutura do Banco
 
-```sql
-CREATE TABLE leads (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    company VARCHAR(255) NOT NULL,
-    website VARCHAR(500),
-    phone VARCHAR(50),
-    whatsapp VARCHAR(50),
-    email VARCHAR(255),
-    whatsapp_valid BOOLEAN,
-    source VARCHAR(100) DEFAULT 'Google',
-    search_term VARCHAR(255),
-    created_at TIMESTAMP DEFAULT NOW()
-);
+Execute o arquivo `database/schema.sql` para criar todas as tabelas:
 
-CREATE TABLE settings (
-    id SERIAL PRIMARY KEY,
-    key VARCHAR(100) UNIQUE NOT NULL,
-    value TEXT,
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE INDEX idx_leads_search_term ON leads(search_term);
-CREATE INDEX idx_leads_created_at ON leads(created_at);
+```bash
+psql -U user -d leads_db -f database/schema.sql
 ```
+
+### Tabelas Principais:
+- **users**: Usuários do sistema com roles (admin/user)
+- **plans**: Planos de assinatura com limites
+- **user_usage**: Controle de uso mensal por usuário
+- **leads**: Leads extraídos
+- **settings**: Configurações do sistema
+- **sessions**: Sessões de autenticação
 
 ## 🔧 Funcionalidades
 
+### Sistema Base
 - ✅ Pesquisa via SERP API
 - ✅ Extração automática de dados (empresa, site, telefone, email)
 - ✅ Verificação de WhatsApp via Evolution API
 - ✅ Paginação infinita (30 resultados por página)
 - ✅ Exportação para CSV
-- ✅ Painel admin para configuração de chaves
 - ✅ Tema escuro
+
+### Multi-usuário
+- ✅ Autenticação (login/registro)
+- ✅ Roles de usuário (admin/user)
+- ✅ CRUD de planos de assinatura
+- ✅ Gerenciamento de usuários (admin)
+- ✅ Controle de limites por plano
+- ✅ Rastreamento de uso mensal
+
+### Planos Padrão
+| Plano | Pesquisas | Leads | WhatsApp | Preço |
+|-------|-----------|-------|----------|-------|
+| Gratuito | 10/mês | 50/mês | 20/mês | R$ 0 |
+| Profissional | 100/mês | 500/mês | 300/mês | R$ 97 |
+| Empresarial | 1000/mês | 5000/mês | 3000/mês | R$ 297 |
 
 ## 📝 Próximos Passos
 
-1. Criar backend Node.js/Express para API
-2. Implementar conexão com PostgreSQL
-3. Integrar SERP API real
-4. Integrar Evolution API real
-5. Deploy no Easypanel
+1. ✅ Sistema multi-usuário com planos
+2. Criar backend Node.js/Express para API
+3. Implementar conexão com PostgreSQL
+4. Integrar SERP API real
+5. Integrar Evolution API real
+6. Integrar sistema de pagamentos (Stripe/PagSeguro)
+7. Deploy no Easypanel

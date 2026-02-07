@@ -1,14 +1,19 @@
 import { useState, useCallback } from 'react';
 import { useLeads } from '@/hooks/useLeads';
+import { useUsage } from '@/hooks/useUsage';
+import { useAuth } from '@/contexts/AuthContext';
 import { SearchBar } from '@/components/SearchBar';
 import { StatsCards } from '@/components/StatsCards';
 import { ActionBar } from '@/components/ActionBar';
 import { LeadCard } from '@/components/LeadCard';
 import { LeadsTable } from '@/components/LeadsTable';
+import { UsageStats } from '@/components/UsageStats';
 import { Button } from '@/components/ui/button';
 import { Loader2, ChevronDown } from 'lucide-react';
 
 const SearchPage = () => {
+  const { isAuthenticated } = useAuth();
+  const { checkLimit, incrementSearch, incrementLeads, incrementWhatsApp } = useUsage();
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
   const [currentQuery, setCurrentQuery] = useState('');
   const [verifyingId, setVerifyingId] = useState<string>();
@@ -26,9 +31,15 @@ const SearchPage = () => {
   } = useLeads();
 
   const handleSearch = useCallback((query: string) => {
+    if (isAuthenticated && !checkLimit('search')) {
+      return;
+    }
     setCurrentQuery(query);
     search(query);
-  }, [search]);
+    if (isAuthenticated) {
+      incrementSearch();
+    }
+  }, [search, isAuthenticated, checkLimit, incrementSearch]);
 
   const handleVerifyWhatsApp = useCallback(async (leadId: string, phone: string) => {
     setVerifyingId(leadId);
@@ -52,6 +63,12 @@ const SearchPage = () => {
         <div className="flex justify-center">
           <SearchBar onSearch={handleSearch} isLoading={isLoading} />
         </div>
+        
+        {isAuthenticated && (
+          <div className="max-w-md mx-auto">
+            <UsageStats />
+          </div>
+        )}
       </div>
 
       {leads.length > 0 && (
