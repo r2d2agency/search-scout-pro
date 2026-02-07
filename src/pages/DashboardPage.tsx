@@ -54,6 +54,12 @@ const leadSources = [
   { name: 'Só Website', value: 5, color: 'hsl(var(--muted))' },
 ];
 
+const whatsappStatus = [
+  { name: 'WhatsApp Válido', value: 856, color: 'hsl(var(--success))' },
+  { name: 'Sem WhatsApp', value: 412, color: 'hsl(var(--destructive))' },
+  { name: 'Não Verificado', value: 655, color: 'hsl(var(--muted))' },
+];
+
 const recentSearches = [
   { term: 'restaurantes são paulo', count: 156, date: '2025-02-07' },
   { term: 'clínicas odontológicas', count: 89, date: '2025-02-07' },
@@ -251,22 +257,22 @@ const DashboardPage = () => {
       </div>
 
       {/* Bottom Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Pie Chart - Lead Sources */}
         <Card>
           <CardHeader>
             <CardTitle>Distribuição de Leads</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-[250px]">
+            <div className="h-[200px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={leadSources}
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
+                    innerRadius={50}
+                    outerRadius={70}
                     paddingAngle={5}
                     dataKey="value"
                   >
@@ -277,16 +283,63 @@ const DashboardPage = () => {
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div className="grid grid-cols-2 gap-2 mt-4">
+            <div className="grid grid-cols-2 gap-2 mt-2">
               {leadSources.map((source) => (
                 <div key={source.name} className="flex items-center gap-2">
                   <div 
                     className="w-3 h-3 rounded-full" 
                     style={{ backgroundColor: source.color }}
                   />
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {source.name} ({source.value}%)
                   </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Pie Chart - WhatsApp Status */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5" />
+              Status WhatsApp
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={whatsappStatus}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={70}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {whatsappStatus.map((entry, index) => (
+                      <Cell key={`cell-whats-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-2 mt-2">
+              {whatsappStatus.map((status) => (
+                <div key={status.name} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-3 h-3 rounded-full" 
+                      style={{ backgroundColor: status.color }}
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      {status.name}
+                    </span>
+                  </div>
+                  <span className="text-sm font-medium">{status.value}</span>
                 </div>
               ))}
             </div>
@@ -302,15 +355,15 @@ const DashboardPage = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-3">
               {recentSearches.map((search, index) => (
                 <div 
                   key={index}
                   className="flex items-center justify-between p-3 rounded-lg bg-secondary/50"
                 >
                   <div>
-                    <p className="font-medium">{search.term}</p>
-                    <p className="text-sm text-muted-foreground">{search.date}</p>
+                    <p className="font-medium text-sm">{search.term}</p>
+                    <p className="text-xs text-muted-foreground">{search.date}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-primary">{search.count}</p>
