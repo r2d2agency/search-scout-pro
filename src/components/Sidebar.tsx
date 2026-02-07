@@ -9,10 +9,12 @@ import {
   CreditCard,
   DollarSign,
   LogOut,
-  User
+  User,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBrand } from '@/hooks/useBrand';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -38,20 +40,33 @@ const adminItems = [
 
 export function Sidebar() {
   const { user, isAuthenticated, logout } = useAuth();
+  const { brand } = useBrand();
   const navigate = useNavigate();
 
   return (
     <aside className="w-64 border-r border-sidebar-border bg-sidebar h-screen sticky top-0 flex flex-col relative overflow-hidden">
       {/* Neon gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-neon-cyan/5 via-transparent to-neon-purple/5 pointer-events-none" />
-      <div className="p-6 border-b border-sidebar-border">
+      <div className="p-6 border-b border-sidebar-border relative z-10">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary neon-glow-cyan">
-            <BarChart3 className="h-6 w-6 text-primary-foreground" />
-          </div>
+          {brand.logoUrl ? (
+            <div className="w-10 h-10 rounded-lg overflow-hidden neon-glow-cyan">
+              <img 
+                src={brand.logoUrl} 
+                alt="Logo" 
+                className="w-full h-full object-contain"
+              />
+            </div>
+          ) : (
+            <div className="p-2 rounded-lg bg-primary neon-glow-cyan">
+              <Sparkles className="h-6 w-6 text-primary-foreground" />
+            </div>
+          )}
           <div>
-            <h1 className="font-bold text-lg text-primary neon-text-cyan logo-text tracking-wider">Lead Extractor</h1>
-            <p className="text-xs text-muted-foreground">SERP + Evolution</p>
+            <h1 className="font-bold text-lg text-primary neon-text-cyan logo-text tracking-wider">
+              {brand.appName}
+            </h1>
+            <p className="text-xs text-muted-foreground">{brand.appSubtitle}</p>
           </div>
         </div>
       </div>
