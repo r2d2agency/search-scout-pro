@@ -1,15 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Lead } from '@/types/lead';
 import { LeadsTable } from '@/components/LeadsTable';
+import { LeadsFilters, LeadsFiltersState, WhatsAppStatusFilter } from '@/components/LeadsFilters';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { exportToCSV } from '@/lib/api';
-import { Download, Search, Trash2, RefreshCw } from 'lucide-react';
+import { Download, Trash2, RefreshCw } from 'lucide-react';
 
 const SavedLeadsPage = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [filters, setFilters] = useState<LeadsFiltersState>({
+    searchTerm: '',
+    whatsappStatus: 'all',
+    dateFrom: undefined,
+    dateTo: undefined,
+    searchQuery: 'all',
+  });
 
   // Mock: carregar leads salvos do localStorage
   useEffect(() => {
@@ -23,11 +29,68 @@ const SavedLeadsPage = () => {
     }
   }, []);
 
-  const filteredLeads = leads.filter(lead => 
-    lead.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lead.searchTerm.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lead.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Extrair termos de pesquisa únicos
+  const uniqueSearchTerms = useMemo(() => {
+    const terms = new Set(leads.map(lead => lead.searchTerm));
+    return Array.from(terms).filter(Boolean).sort();
+  }, [leads]);
+
+  // Aplicar filtros
+  const filteredLeads = useMemo(() => {
+    return leads.filter(lead => {
+      // Filtro de texto (empresa, email)
+      if (filters.searchTerm) {
+        const searchLower = filters.searchTerm.toLowerCase();
+        const matchesSearch = 
+          lead.company.toLowerCase().includes(searchLower) ||
+          lead.email?.toLowerCase().includes(searchLower) ||
+          lead.phone?.toLowerCase().includes(searchLower);
+        if (!matchesSearch) return false;
+      }
+
+      // Filtro de status WhatsApp
+      if (filters.whatsappStatus !== 'all') {
+        switch (filters.whatsappStatus as WhatsAppStatusFilter) {
+          case 'valid':
+            if (lead.whatsappValid !== true) return false;
+            break;
+          case 'invalid':
+            if (lead.whatsappValid !== false) return false;
+            break;
+          case 'not_verified':
+            if (lead.whatsappValid !== null) return false;
+            break;
+          case 'has_whatsapp':
+            if (!lead.whatsapp) return false;
+            break;
+        }
+      }
+
+      // Filtro de termo de pesquisa original
+      if (filters.searchQuery !== 'all') {
+        if (lead.searchTerm !== filters.searchQuery) return false;
+      }
+
+      // Filtro de data
+      if (filters.dateFrom || filters.dateTo) {
+        const leadDate = new Date(lead.createdAt);
+        
+        if (filters.dateFrom) {
+          const fromDate = new Date(filters.dateFrom);
+          fromDate.setHours(0, 0, 0, 0);
+          if (leadDate < fromDate) return false;
+        }
+        
+        if (filters.dateTo) {
+          const toDate = new Date(filters.dateTo);
+          toDate.setHours(23, 59, 59, 999);
+          if (leadDate > toDate) return false;
+        }
+      }
+
+      return true;
+    });
+  }, [leads, filters]);
 
   const handleRefresh = async () => {
     setIsLoading(true);
@@ -45,24 +108,14 @@ const SavedLeadsPage = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Leads Salvos</h1>
-        <p className="text-muted-foreground">
-          Gerencie todos os leads extraídos e salvos
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por empresa, termo ou email..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Leads Salvos</h1>
+          <p className="text-muted-foreground">
+            Gerencie todos os leads extraídos e salvos
+          </p>
         </div>
-
+        
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleRefresh} disabled={isLoading}>
             <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
@@ -89,6 +142,13 @@ const SavedLeadsPage = () => {
         </div>
       </div>
 
+      {/* Filtros */}
+      <LeadsFilters
+        filters={filters}
+        onFiltersChange={setFilters}
+        searchTerms={uniqueSearchTerms}
+      />
+
       {filteredLeads.length > 0 ? (
         <>
           <LeadsTable 
@@ -96,7 +156,8 @@ const SavedLeadsPage = () => {
             onVerifyWhatsApp={() => {}}
           />
           <p className="text-center text-sm text-muted-foreground">
-            {filteredLeads.length} lead(s) encontrado(s)
+            {filteredLeads.length} de {leads.length} lead(s) 
+            {filteredLeads.length !== leads.length && ' (filtrado)'}
           </p>
         </>
       ) : (
