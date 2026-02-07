@@ -1,3 +1,4 @@
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   ChartContainer, 
@@ -9,23 +10,23 @@ import {
   Bar, 
   XAxis, 
   YAxis, 
-  LineChart, 
-  Line,
   PieChart,
   Pie,
   Cell,
-  ResponsiveContainer,
   Area,
   AreaChart,
 } from 'recharts';
+import { ResponsiveContainer } from 'recharts';
 import { 
   TrendingUp, 
   Search, 
-  Users, 
-  CheckCircle2, 
   Calendar,
-  Activity
+  CheckCircle2,
 } from 'lucide-react';
+import { DateRange } from 'react-day-picker';
+import DashboardFilters from '@/components/DashboardFilters';
+import StatsCards from '@/components/dashboard/StatsCards';
+import SearchTermsChart from '@/components/dashboard/SearchTermsChart';
 
 // Mock data - substituir por dados reais do backend
 const weeklySearches = [
@@ -60,6 +61,15 @@ const whatsappStatus = [
   { name: 'Não Verificado', value: 655, color: 'hsl(var(--muted))' },
 ];
 
+const searchTermsPerformance = [
+  { term: 'restaurantes são paulo', leads: 156, whatsapp: 89 },
+  { term: 'clínicas odontológicas', leads: 89, whatsapp: 52 },
+  { term: 'advocacia trabalhista', leads: 67, whatsapp: 41 },
+  { term: 'contabilidade empresarial', leads: 45, whatsapp: 28 },
+  { term: 'pet shop delivery', leads: 34, whatsapp: 19 },
+  { term: 'academias crossfit', leads: 28, whatsapp: 15 },
+];
+
 const recentSearches = [
   { term: 'restaurantes são paulo', count: 156, date: '2025-02-07' },
   { term: 'clínicas odontológicas', count: 89, date: '2025-02-07' },
@@ -84,93 +94,77 @@ const chartConfig = {
 };
 
 const DashboardPage = () => {
-  const stats = {
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [period, setPeriod] = useState<string>('all');
+
+  const stats = useMemo(() => ({
     totalSearches: 2847,
     totalLeads: 1923,
     validWhatsApp: 856,
     conversionRate: 67.5,
-  };
+  }), []);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Visão geral do volume de pesquisas e leads extraídos
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Visão geral do volume de pesquisas e leads extraídos
+          </p>
+        </div>
+        <DashboardFilters
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+          period={period}
+          onPeriodChange={setPeriod}
+        />
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Pesquisas</p>
-                <p className="text-3xl font-bold">{stats.totalSearches.toLocaleString()}</p>
-              </div>
-              <div className="p-3 rounded-full bg-primary/10">
-                <Search className="h-6 w-6 text-primary" />
-              </div>
-            </div>
-            <div className="mt-2 flex items-center gap-1 text-sm text-success">
-              <TrendingUp className="h-4 w-4" />
-              <span>+12.5% esta semana</span>
-            </div>
-          </CardContent>
-        </Card>
+      <StatsCards stats={stats} />
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Leads Extraídos</p>
-                <p className="text-3xl font-bold">{stats.totalLeads.toLocaleString()}</p>
-              </div>
-              <div className="p-3 rounded-full bg-success/10">
-                <Users className="h-6 w-6 text-success" />
-              </div>
-            </div>
-            <div className="mt-2 flex items-center gap-1 text-sm text-success">
-              <TrendingUp className="h-4 w-4" />
-              <span>+8.3% esta semana</span>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Performance by Search Term */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <SearchTermsChart data={searchTermsPerformance} />
 
+        {/* Monthly Trend Chart */}
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">WhatsApp Válidos</p>
-                <p className="text-3xl font-bold">{stats.validWhatsApp.toLocaleString()}</p>
-              </div>
-              <div className="p-3 rounded-full bg-info/10">
-                <CheckCircle2 className="h-6 w-6 text-info" />
-              </div>
-            </div>
-            <div className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
-              <Activity className="h-4 w-4" />
-              <span>44.5% dos leads</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Taxa Conversão</p>
-                <p className="text-3xl font-bold">{stats.conversionRate}%</p>
-              </div>
-              <div className="p-3 rounded-full bg-warning/10">
-                <TrendingUp className="h-6 w-6 text-warning" />
-              </div>
-            </div>
-            <div className="mt-2 flex items-center gap-1 text-sm text-success">
-              <TrendingUp className="h-4 w-4" />
-              <span>+2.1% esta semana</span>
-            </div>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Tendência Mensal
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="h-[300px]">
+              <AreaChart data={monthlyTrend}>
+                <defs>
+                  <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <XAxis 
+                  dataKey="month" 
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                />
+                <YAxis 
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Area 
+                  type="monotone"
+                  dataKey="total" 
+                  stroke="hsl(var(--primary))" 
+                  fillOpacity={1}
+                  fill="url(#colorTotal)"
+                  name="Total"
+                />
+              </AreaChart>
+            </ChartContainer>
           </CardContent>
         </Card>
       </div>
@@ -215,49 +209,38 @@ const DashboardPage = () => {
           </CardContent>
         </Card>
 
-        {/* Monthly Trend Chart */}
+        {/* Recent Searches Table */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Tendência Mensal
+              <Search className="h-5 w-5" />
+              Pesquisas Recentes
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={chartConfig} className="h-[300px]">
-              <AreaChart data={monthlyTrend}>
-                <defs>
-                  <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <XAxis 
-                  dataKey="month" 
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                />
-                <YAxis 
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Area 
-                  type="monotone"
-                  dataKey="total" 
-                  stroke="hsl(var(--primary))" 
-                  fillOpacity={1}
-                  fill="url(#colorTotal)"
-                  name="Total"
-                />
-              </AreaChart>
-            </ChartContainer>
+            <div className="space-y-3">
+              {recentSearches.map((search, index) => (
+                <div 
+                  key={index}
+                  className="flex items-center justify-between p-3 rounded-lg bg-secondary/50"
+                >
+                  <div>
+                    <p className="font-medium text-sm">{search.term}</p>
+                    <p className="text-xs text-muted-foreground">{search.date}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-primary">{search.count}</p>
+                    <p className="text-xs text-muted-foreground">leads</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Bottom Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      {/* Bottom Row - Pie Charts */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Pie Chart - Lead Sources */}
         <Card>
           <CardHeader>
@@ -340,35 +323,6 @@ const DashboardPage = () => {
                     </span>
                   </div>
                   <span className="text-sm font-medium">{status.value}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Recent Searches Table */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Search className="h-5 w-5" />
-              Pesquisas Recentes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {recentSearches.map((search, index) => (
-                <div 
-                  key={index}
-                  className="flex items-center justify-between p-3 rounded-lg bg-secondary/50"
-                >
-                  <div>
-                    <p className="font-medium text-sm">{search.term}</p>
-                    <p className="text-xs text-muted-foreground">{search.date}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-primary">{search.count}</p>
-                    <p className="text-xs text-muted-foreground">leads</p>
-                  </div>
                 </div>
               ))}
             </div>
