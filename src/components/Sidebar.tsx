@@ -41,15 +41,17 @@ export function Sidebar() {
   const navigate = useNavigate();
 
   return (
-    <aside className="w-64 border-r bg-sidebar h-screen sticky top-0 flex flex-col">
-      <div className="p-6 border-b">
+    <aside className="w-64 border-r border-sidebar-border bg-sidebar h-screen sticky top-0 flex flex-col relative overflow-hidden">
+      {/* Neon gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-b from-neon-cyan/5 via-transparent to-neon-purple/5 pointer-events-none" />
+      <div className="p-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary">
+          <div className="p-2 rounded-lg bg-primary neon-glow-cyan">
             <BarChart3 className="h-6 w-6 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="font-bold text-lg text-sidebar-foreground">Lead Extractor</h1>
-            <p className="text-xs text-sidebar-foreground/60">SERP + Evolution</p>
+            <h1 className="font-bold text-lg text-primary neon-text-cyan logo-text tracking-wider">Lead Extractor</h1>
+            <p className="text-xs text-muted-foreground">SERP + Evolution</p>
           </div>
         </div>
       </div>
@@ -58,19 +60,19 @@ export function Sidebar() {
         <ul className="space-y-2">
           {navItems.map((item) => (
             <li key={item.to}>
-              <NavLink
-                to={item.to}
-                className={({ isActive }) =>
-                  cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
-                    'text-sidebar-foreground hover:bg-sidebar-accent',
-                    isActive && 'bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary'
-                  )
-                }
-              >
-                <item.icon className="h-5 w-5" />
-                <span className="font-medium">{item.label}</span>
-              </NavLink>
+                <NavLink
+                  to={item.to}
+                  className={({ isActive }) =>
+                    cn(
+                      'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300',
+                      'text-sidebar-foreground hover:bg-sidebar-accent hover:text-primary',
+                      isActive && 'bg-primary/10 text-primary neon-border'
+                    )
+                  }
+                >
+                  <item.icon className="h-5 w-5" />
+                  <span className="font-medium">{item.label}</span>
+                </NavLink>
             </li>
           ))}
         </ul>
@@ -78,7 +80,7 @@ export function Sidebar() {
         {user?.role === 'admin' && (
           <>
             <div className="my-4 px-3">
-              <p className="text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
+              <p className="text-xs font-semibold text-accent uppercase tracking-wider neon-text-pink">
                 Administração
               </p>
             </div>
@@ -89,9 +91,9 @@ export function Sidebar() {
                     to={item.to}
                     className={({ isActive }) =>
                       cn(
-                        'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
-                        'text-sidebar-foreground hover:bg-sidebar-accent',
-                        isActive && 'bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary'
+                        'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300',
+                        'text-sidebar-foreground hover:bg-sidebar-accent hover:text-accent',
+                        isActive && 'bg-accent/10 text-accent neon-border-pink'
                       )
                     }
                   >
