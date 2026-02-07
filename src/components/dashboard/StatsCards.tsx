@@ -19,14 +19,15 @@ interface StatsCardsProps {
 const StatsCards = ({ stats }: StatsCardsProps) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      <Card>
-        <CardContent className="p-6">
+      <Card className="relative overflow-hidden group hover:neon-glow-cyan transition-all duration-500">
+        <div className="absolute inset-0 bg-gradient-to-br from-neon-cyan/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <CardContent className="p-6 relative">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Total Pesquisas</p>
-              <p className="text-3xl font-bold">{stats.totalSearches.toLocaleString()}</p>
+              <p className="text-3xl font-bold text-primary">{stats.totalSearches.toLocaleString()}</p>
             </div>
-            <div className="p-3 rounded-full bg-primary/10">
+            <div className="p-3 rounded-full bg-primary/20 neon-glow-cyan">
               <Search className="h-6 w-6 text-primary" />
             </div>
           </div>
@@ -37,14 +38,15 @@ const StatsCards = ({ stats }: StatsCardsProps) => {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="p-6">
+      <Card className="relative overflow-hidden group hover:neon-glow-green transition-all duration-500">
+        <div className="absolute inset-0 bg-gradient-to-br from-neon-green/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <CardContent className="p-6 relative">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Leads Extraídos</p>
-              <p className="text-3xl font-bold">{stats.totalLeads.toLocaleString()}</p>
+              <p className="text-3xl font-bold text-success">{stats.totalLeads.toLocaleString()}</p>
             </div>
-            <div className="p-3 rounded-full bg-success/10">
+            <div className="p-3 rounded-full bg-success/20 neon-glow-green">
               <Users className="h-6 w-6 text-success" />
             </div>
           </div>
@@ -55,14 +57,15 @@ const StatsCards = ({ stats }: StatsCardsProps) => {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="p-6">
+      <Card className="relative overflow-hidden group hover:shadow-[0_0_30px_hsl(200_100%_55%/0.3)] transition-all duration-500">
+        <div className="absolute inset-0 bg-gradient-to-br from-neon-blue/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <CardContent className="p-6 relative">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">WhatsApp Válidos</p>
-              <p className="text-3xl font-bold">{stats.validWhatsApp.toLocaleString()}</p>
+              <p className="text-3xl font-bold text-info">{stats.validWhatsApp.toLocaleString()}</p>
             </div>
-            <div className="p-3 rounded-full bg-info/10">
+            <div className="p-3 rounded-full bg-info/20 shadow-[0_0_15px_hsl(200_100%_55%/0.4)]">
               <CheckCircle2 className="h-6 w-6 text-info" />
             </div>
           </div>
@@ -73,14 +76,15 @@ const StatsCards = ({ stats }: StatsCardsProps) => {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="p-6">
+      <Card className="relative overflow-hidden group hover:shadow-[0_0_30px_hsl(45_100%_55%/0.3)] transition-all duration-500">
+        <div className="absolute inset-0 bg-gradient-to-br from-neon-yellow/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <CardContent className="p-6 relative">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Taxa Conversão</p>
-              <p className="text-3xl font-bold">{stats.conversionRate}%</p>
+              <p className="text-3xl font-bold text-warning">{stats.conversionRate}%</p>
             </div>
-            <div className="p-3 rounded-full bg-warning/10">
+            <div className="p-3 rounded-full bg-warning/20 shadow-[0_0_15px_hsl(45_100%_55%/0.4)]">
               <TrendingUp className="h-6 w-6 text-warning" />
             </div>
           </div>
