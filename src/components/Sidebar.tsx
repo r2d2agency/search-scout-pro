@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom';
-import { Search, Settings, Database, BarChart3 } from 'lucide-react';
+import { Search, Settings, Database, BarChart3, LayoutDashboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { to: '/', icon: Search, label: 'Pesquisar' },
+  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/search', icon: Search, label: 'Pesquisar' },
   { to: '/leads', icon: Database, label: 'Leads Salvos' },
   { to: '/admin', icon: Settings, label: 'Configurações' },
 ];
