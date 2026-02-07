@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { BrandSettings } from '@/components/BrandSettings';
 import { 
   Save, 
   TestTube2, 
@@ -13,7 +14,7 @@ import {
   Loader2,
   Eye,
   EyeOff,
-  CheckCircle2
+  Palette
 } from 'lucide-react';
 
 export function AdminPanel() {
@@ -39,8 +40,12 @@ export function AdminPanel() {
         </p>
       </div>
 
-      <Tabs defaultValue="serp" className="space-y-4">
-        <TabsList>
+      <Tabs defaultValue="brand" className="space-y-4">
+        <TabsList className="bg-muted/50">
+          <TabsTrigger value="brand">
+            <Palette className="mr-2 h-4 w-4" />
+            Marca
+          </TabsTrigger>
           <TabsTrigger value="serp">
             <Key className="mr-2 h-4 w-4" />
             SERP API
@@ -50,6 +55,10 @@ export function AdminPanel() {
             Evolution API
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="brand">
+          <BrandSettings />
+        </TabsContent>
 
         <TabsContent value="serp">
           <Card>
