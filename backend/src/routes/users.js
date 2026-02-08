@@ -305,8 +305,8 @@ router.get('/stats/global', authenticate, requireSuperAdmin, async (req, res) =>
       FROM serp_api_keys
     `);
 
-    const usersByRole: Record<string, number> = {};
-    usersResult.rows.forEach((row: any) => {
+    const usersByRole = {};
+    usersResult.rows.forEach((row) => {
       usersByRole[row.role] = parseInt(row.count);
     });
 
@@ -316,7 +316,7 @@ router.get('/stats/global', authenticate, requireSuperAdmin, async (req, res) =>
     res.json({
       month,
       users: {
-        total: Object.values(usersByRole).reduce((a: number, b: number) => a + b, 0),
+        total: Object.values(usersByRole).reduce((a, b) => a + b, 0),
         byRole: usersByRole
       },
       usage: {
@@ -330,7 +330,7 @@ router.get('/stats/global', authenticate, requireSuperAdmin, async (req, res) =>
         usage: parseInt(serpKeys.total_usage),
         limit: parseInt(serpKeys.total_limit)
       },
-      topUsers: topUsersResult.rows.map((row: any) => ({
+      topUsers: topUsersResult.rows.map((row) => ({
         id: row.id,
         name: row.name,
         email: row.email,
