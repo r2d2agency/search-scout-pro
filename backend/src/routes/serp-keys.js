@@ -142,13 +142,22 @@ async function getNextAvailableKey() {
 
     const key = result.rows[0];
 
+    // DEBUG: Log para verificar qual chave está sendo usada
+    console.log('SERP Key Debug:', {
+      keyId: key.id,
+      keyStart: key.api_key?.substring(0, 8),
+      keyEnd: key.api_key?.substring(key.api_key.length - 4),
+      keyLength: key.api_key?.length,
+      hasSpaces: key.api_key !== key.api_key?.trim()
+    });
+
     // Incrementar uso
     await db.query(
       'UPDATE serp_api_keys SET usage_count = usage_count + 1, last_used_at = NOW() WHERE id = $1',
       [key.id]
     );
 
-    return key.api_key;
+    return key.api_key?.trim(); // Remove espaços extras
   } catch (error) {
     console.error('Erro ao obter chave SERP:', error);
     return null;
