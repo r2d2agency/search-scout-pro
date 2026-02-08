@@ -153,26 +153,21 @@ router.post('/search', authenticate, async (req, res) => {
     const cleanQuery = query.replace('@', '').replace('#', '').trim();
     const isHashtag = query.startsWith('#');
 
-    // Executar o actor de forma síncrona (aguarda resultado)
+    // Usar o actor instagram-search-scraper para buscar múltiplos perfis por termo
+    // Este actor retorna resultados de busca do Instagram (múltiplos perfis que contêm o termo)
+    const actorId = 'apify~instagram-search-scraper';
+    
     const runResponse = await fetch(
-      `https://api.apify.com/v2/acts/apify~instagram-scraper/run-sync-get-dataset-items?token=${apiKey}`,
+      `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apiKey}`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(isHashtag ? {
-          // Busca por hashtag
-          directUrls: [`https://www.instagram.com/explore/tags/${cleanQuery}/`],
-          resultsType: 'details',
-          resultsLimit: limit,
-        } : {
-          // Busca por termo - retorna múltiplos perfis
+        body: JSON.stringify({
           search: cleanQuery,
-          searchType: 'user',
-          searchLimit: limit,
-          resultsType: 'details',
-          resultsLimit: limit,
+          searchType: isHashtag ? 'hashtag' : 'user',
+          resultsLimit: Math.min(limit, 50),
         }),
       }
     );
@@ -411,45 +406,54 @@ function extractAllFromBio(bio, externalUrl) {
 }
 
 // Extrair lead de resultado do Instagram
+// Compatível com ambos actors: instagram-scraper e instagram-search-scraper
 function extractLeadFromInstagram(item, searchTerm, position) {
-  const bio = item.biography || '';
-  const externalUrl = item.externalUrl || '';
+  // O instagram-search-scraper pode retornar dados em estrutura diferente
+  const bio = item.biography || item.bio || '';
+  const externalUrl = item.externalUrl || item.external_url || item.website || '';
+  const username = item.username || item.user?.username || '';
+  const fullName = item.fullName || item.full_name || item.name || username;
+  const followersCount = item.followersCount || item.followers_count || item.followers || 0;
+  const followingCount = item.followsCount || item.following_count || item.following || 0;
+  const postsCount = item.postsCount || item.posts_count || item.mediaCount || 0;
+  const isVerified = item.verified || item.is_verified || false;
+  const isBusinessAccount = item.isBusinessAccount || item.is_business_account || false;
+  const businessCategory = item.businessCategoryName || item.business_category_name || item.category || null;
+  const profilePicUrl = item.profilePicUrl || item.profile_pic_url || item.profilePicture || null;
   
   // Extrair todos os dados da bio
   const extractedData = extractAllFromBio(bio, externalUrl);
   
   return {
     id: `ig-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    company: item.fullName || item.username || 'Sem nome',
+    company: fullName || 'Sem nome',
     website: extractedData.website || externalUrl || null,
     phone: extractedData.phone,
     whatsapp: extractedData.whatsapp,
     email: extractedData.email,
-    whatsappValid: extractedData.whatsappFromLink ? true : null, // Se veio de wa.me, já sabemos que é válido
+    whatsappValid: extractedData.whatsappFromLink ? true : null,
     source: 'Instagram',
     searchTerm,
     createdAt: new Date().toISOString(),
-    // Dados específicos do Instagram
     address: null,
     rating: null,
     ratingCount: null,
-    category: item.businessCategoryName || null,
+    category: businessCategory,
     serpData: {
       type: 'instagram',
       position,
-      username: item.username,
-      fullName: item.fullName,
+      username: username,
+      fullName: fullName,
       biography: bio,
-      followersCount: item.followersCount,
-      followingCount: item.followsCount,
-      postsCount: item.postsCount,
-      isVerified: item.verified,
-      isBusinessAccount: item.isBusinessAccount,
-      businessCategory: item.businessCategoryName,
-      profilePicUrl: item.profilePicUrl,
+      followersCount: followersCount,
+      followingCount: followingCount,
+      postsCount: postsCount,
+      isVerified: isVerified,
+      isBusinessAccount: isBusinessAccount,
+      businessCategory: businessCategory,
+      profilePicUrl: profilePicUrl,
       externalUrl: externalUrl,
-      profileUrl: `https://instagram.com/${item.username}`,
-      // Dados extraídos da bio
+      profileUrl: username ? `https://instagram.com/${username}` : null,
       extractedLinks: extractedData.links,
       extractedPhones: extractedData.allPhones,
       extractedEmails: extractedData.allEmails,

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUsage } from '@/hooks/useUsage';
 import { UsageStats } from '@/components/UsageStats';
@@ -98,62 +98,8 @@ const SearchPage = () => {
   const [searchName, setSearchName] = useState('');
   const [savingSearch, setSavingSearch] = useState(false);
 
-  // Sugestões de Instagram
-  const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-
-  // Buscar sugestões do Instagram (debounced)
-  const fetchSuggestions = useCallback(async (searchQuery: string) => {
-    if (searchSource !== 'instagram' || searchQuery.length < 2) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    setLoadingSuggestions(true);
-    try {
-      const result = await instagramApi.getSuggestions(searchQuery);
-      setSuggestions(result.suggestions || []);
-      setShowSuggestions(result.suggestions?.length > 0);
-    } catch (error) {
-      console.error('Erro ao buscar sugestões:', error);
-      setSuggestions([]);
-    } finally {
-      setLoadingSuggestions(false);
-    }
-  }, [searchSource]);
-
-  // Debounce para sugestões
-  const debounceRef = useRef<NodeJS.Timeout>();
-  const handleQueryChange = (value: string) => {
-    setQuery(value);
-    
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-    
-    if (searchSource === 'instagram' && value.length >= 2) {
-      debounceRef.current = setTimeout(() => {
-        fetchSuggestions(value);
-      }, 500);
-    } else {
-      setSuggestions([]);
-      setShowSuggestions(false);
-    }
-  };
-
-  // Selecionar sugestão
-  const selectSuggestion = (username: string) => {
-    setQuery(username);
-    setShowSuggestions(false);
-    setSuggestions([]);
-  };
-
   const handleSearch = useCallback(async (page: number = 1, accumulate: boolean = false) => {
     if (!query.trim()) return;
-    
-    setShowSuggestions(false);
     
     if (isAuthenticated) {
       const canSearch = await checkLimit('search');
@@ -463,63 +409,14 @@ const SearchPage = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input
             value={query}
-            onChange={(e) => handleQueryChange(e.target.value)}
+            onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
             placeholder={searchSource === 'instagram' 
-              ? "Digite um nome (ex: stockzero, clinicamedica)"
+              ? "Digite um termo (ex: stockzero, clinicamedica) - retorna perfis similares"
               : "clinica medica em rio preto"
             }
             className="pl-10 h-12 text-base"
           />
-          
-          {/* Sugestões de Instagram */}
-          {searchSource === 'instagram' && showSuggestions && suggestions.length > 0 && (
-            <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-lg overflow-hidden">
-              {loadingSuggestions && (
-                <div className="flex items-center justify-center p-3">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                </div>
-              )}
-              {suggestions.map((suggestion) => (
-                <button
-                  key={suggestion.username}
-                  type="button"
-                  className="w-full flex items-center gap-3 p-3 hover:bg-muted/50 text-left transition-colors"
-                  onClick={() => selectSuggestion(suggestion.username)}
-                >
-                  {suggestion.profilePicUrl ? (
-                    <img 
-                      src={suggestion.profilePicUrl} 
-                      alt={suggestion.username}
-                      className="w-10 h-10 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                      <Instagram className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-foreground">@{suggestion.username}</span>
-                      {suggestion.isVerified && <BadgeCheck className="h-4 w-4 text-primary" />}
-                    </div>
-                    <p className="text-sm text-muted-foreground truncate">{suggestion.fullName}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <Users className="h-3 w-3" />
-                      {suggestion.followersCount >= 1000 
-                        ? `${(suggestion.followersCount / 1000).toFixed(1)}K`
-                        : suggestion.followersCount || 0
-                      }
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
         </div>
         <Button 
           onClick={handleNewSearch} 
@@ -596,8 +493,8 @@ const SearchPage = () => {
           <>
             <Instagram className="h-4 w-4 text-primary" />
             <span>
-              <strong>Influenciadores:</strong> Digite o nome e veja sugestões de perfis similares. 
-              Os dados de contato (email, telefone, site) são extraídos automaticamente da bio.
+              <strong>Busca por termo:</strong> Digite parte do nome (ex: "stockzero") e a busca retorna todos os perfis 
+              similares (stockzero, stockzero.sp, stockzero_riopreto...). Links wa.me são detectados como WhatsApp.
             </span>
           </>
         ) : (
