@@ -14,16 +14,18 @@ import {
   XCircle, 
   ExternalLink, 
   MessageCircle,
-  Loader2
+  Loader2,
+  Trash2
 } from 'lucide-react';
 
 interface LeadsTableProps {
   leads: Lead[];
   onVerifyWhatsApp: (leadId: string, phone: string) => void;
   verifyingId?: string;
+  onDelete?: (leadId: string) => void;
 }
 
-export function LeadsTable({ leads, onVerifyWhatsApp, verifyingId }: LeadsTableProps) {
+export function LeadsTable({ leads, onVerifyWhatsApp, verifyingId, onDelete }: LeadsTableProps) {
   const getWhatsAppBadge = (lead: Lead) => {
     if (!lead.whatsapp) {
       return <span className="text-muted-foreground">-</span>;
@@ -73,6 +75,7 @@ export function LeadsTable({ leads, onVerifyWhatsApp, verifyingId }: LeadsTableP
             <TableHead>WhatsApp</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Fonte</TableHead>
+            {onDelete && <TableHead className="w-[50px]"></TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -113,6 +116,18 @@ export function LeadsTable({ leads, onVerifyWhatsApp, verifyingId }: LeadsTableP
               <TableCell>
                 <Badge variant="secondary">{lead.source}</Badge>
               </TableCell>
+              {onDelete && (
+                <TableCell>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onDelete(lead.id)}
+                    className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>

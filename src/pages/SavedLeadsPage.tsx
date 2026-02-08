@@ -1,14 +1,22 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Lead } from '@/types/lead';
 import { LeadsTable } from '@/components/LeadsTable';
 import { LeadsFilters, LeadsFiltersState, WhatsAppStatusFilter } from '@/components/LeadsFilters';
 import { Button } from '@/components/ui/button';
 import { exportToCSV } from '@/lib/api';
-import { Download, Trash2, RefreshCw } from 'lucide-react';
+import { leadsApi } from '@/lib/apiClient';
+import { Download, Trash2, RefreshCw, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+
+const LEADS_PER_PAGE = 30;
 
 const SavedLeadsPage = () => {
+  const { isAuthenticated } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalLeads, setTotalLeads] = useState(0);
   const [filters, setFilters] = useState<LeadsFiltersState>({
     searchTerm: '',
     whatsappStatus: 'all',
@@ -17,17 +25,35 @@ const SavedLeadsPage = () => {
     searchQuery: 'all',
   });
 
-  // Mock: carregar leads salvos do localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('saved_leads');
-    if (saved) {
-      try {
-        setLeads(JSON.parse(saved));
-      } catch {
-        console.error('Erro ao carregar leads');
-      }
+  const totalPages = Math.ceil(totalLeads / LEADS_PER_PAGE);
+
+  // Carregar leads do banco
+  const loadLeads = useCallback(async (page: number = 1) => {
+    if (!isAuthenticated) {
+      return;
     }
-  }, []);
+    
+    setIsLoading(true);
+    try {
+      const response = await leadsApi.list(page, LEADS_PER_PAGE);
+      setLeads(response.leads || []);
+      setTotalLeads(response.total || 0);
+      setCurrentPage(page);
+    } catch (error) {
+      console.error('Erro ao carregar leads:', error);
+      toast({
+        title: 'Erro ao carregar leads',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    loadLeads(1);
+  }, [loadLeads]);
 
   // Extrair termos de pesquisa únicos
   const uniqueSearchTerms = useMemo(() => {
@@ -35,10 +61,9 @@ const SavedLeadsPage = () => {
     return Array.from(terms).filter(Boolean).sort();
   }, [leads]);
 
-  // Aplicar filtros
+  // Aplicar filtros locais
   const filteredLeads = useMemo(() => {
     return leads.filter(lead => {
-      // Filtro de texto (empresa, email)
       if (filters.searchTerm) {
         const searchLower = filters.searchTerm.toLowerCase();
         const matchesSearch = 
@@ -48,7 +73,6 @@ const SavedLeadsPage = () => {
         if (!matchesSearch) return false;
       }
 
-      // Filtro de status WhatsApp
       if (filters.whatsappStatus !== 'all') {
         switch (filters.whatsappStatus as WhatsAppStatusFilter) {
           case 'valid':
@@ -66,12 +90,10 @@ const SavedLeadsPage = () => {
         }
       }
 
-      // Filtro de termo de pesquisa original
       if (filters.searchQuery !== 'all') {
         if (lead.searchTerm !== filters.searchQuery) return false;
       }
 
-      // Filtro de data
       if (filters.dateFrom || filters.dateTo) {
         const leadDate = new Date(lead.createdAt);
         
@@ -92,19 +114,72 @@ const SavedLeadsPage = () => {
     });
   }, [leads, filters]);
 
-  const handleRefresh = async () => {
-    setIsLoading(true);
-    // TODO: Implementar refresh do banco
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setIsLoading(false);
+  const handleRefresh = () => {
+    loadLeads(currentPage);
   };
 
-  const handleClearAll = () => {
-    if (confirm('Tem certeza que deseja excluir todos os leads salvos?')) {
-      setLeads([]);
-      localStorage.removeItem('saved_leads');
+  const handleDeleteLead = async (leadId: string) => {
+    try {
+      await leadsApi.delete(leadId);
+      setLeads(prev => prev.filter(l => l.id !== leadId));
+      setTotalLeads(prev => prev - 1);
+      toast({
+        title: 'Lead excluído',
+        description: 'Lead removido com sucesso',
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro ao excluir',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
     }
   };
+
+  const handleClearAll = async () => {
+    if (!confirm('Tem certeza que deseja excluir todos os leads salvos?')) return;
+    
+    try {
+      // Deletar todos os leads visíveis
+      for (const lead of leads) {
+        await leadsApi.delete(lead.id);
+      }
+      setLeads([]);
+      setTotalLeads(0);
+      toast({
+        title: 'Leads excluídos',
+        description: 'Todos os leads foram removidos',
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro ao limpar',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      loadLeads(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      loadLeads(currentPage + 1);
+    }
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">
+          Faça login para ver seus leads salvos.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -142,23 +217,58 @@ const SavedLeadsPage = () => {
         </div>
       </div>
 
-      {/* Filtros */}
       <LeadsFilters
         filters={filters}
         onFiltersChange={setFilters}
         searchTerms={uniqueSearchTerms}
       />
 
-      {filteredLeads.length > 0 ? (
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : filteredLeads.length > 0 ? (
         <>
           <LeadsTable 
             leads={filteredLeads} 
             onVerifyWhatsApp={() => {}}
+            onDelete={handleDeleteLead}
           />
-          <p className="text-center text-sm text-muted-foreground">
-            {filteredLeads.length} de {leads.length} lead(s) 
-            {filteredLeads.length !== leads.length && ' (filtrado)'}
-          </p>
+          
+          {/* Paginação */}
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Exibindo {(currentPage - 1) * LEADS_PER_PAGE + 1}-
+              {Math.min(currentPage * LEADS_PER_PAGE, totalLeads)} de {totalLeads} leads
+              {filteredLeads.length !== leads.length && ` (${filteredLeads.length} filtrado)`}
+            </p>
+            
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handlePrevPage}
+                disabled={currentPage <= 1 || isLoading}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Anterior
+              </Button>
+              
+              <span className="flex items-center px-3 text-sm text-muted-foreground">
+                Página {currentPage} de {totalPages || 1}
+              </span>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleNextPage}
+                disabled={currentPage >= totalPages || isLoading}
+              >
+                Próxima
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </div>
         </>
       ) : (
         <div className="text-center py-12">
