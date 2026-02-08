@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useUsage } from '@/hooks/useUsage';
 import { UsageStats } from '@/components/UsageStats';
 import { LeadDetailModal } from '@/components/LeadDetailModal';
+import { SearchProgress } from '@/components/SearchProgress';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -514,6 +515,9 @@ const SearchPage = () => {
         </div>
       )}
 
+      {/* Search Progress - Futuristic Loading */}
+      <SearchProgress isLoading={isLoading} source={searchSource} />
+
       {leads.length > 0 && (
         <>
           {/* Controle de resultados */}
@@ -551,7 +555,7 @@ const SearchPage = () => {
             <span className="text-muted-foreground">
               Total: <strong>{leads.length}</strong>
             </span>
-            <span className="text-emerald-500">
+            <span className="text-neon-cyan">
               Com WhatsApp: <strong>{leadsWithWhatsApp.length}</strong>
             </span>
             <span className="text-muted-foreground">
