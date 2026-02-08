@@ -43,28 +43,28 @@ export function Sidebar() {
     <aside className="w-64 border-r border-sidebar-border bg-sidebar h-screen sticky top-0 flex flex-col relative overflow-hidden">
       {/* Neon gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-neon-cyan/5 via-transparent to-neon-purple/5 pointer-events-none" />
-      <div className="p-6 border-b border-sidebar-border relative z-10">
-        <div className="flex items-center gap-3">
-          {brand.logoUrl ? (
-            <div className="w-10 h-10 rounded-lg overflow-hidden neon-glow-cyan">
-              <img 
-                src={brand.logoUrl} 
-                alt="Logo" 
-                className="w-full h-full object-contain"
-              />
-            </div>
-          ) : (
+      <div className="p-4 border-b border-sidebar-border relative z-10">
+        {brand.logoUrl ? (
+          <div className="w-full h-12 flex items-center justify-center">
+            <img 
+              src={brand.logoUrl} 
+              alt="Logo" 
+              className="max-h-12 max-w-full object-contain"
+            />
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary neon-glow-cyan">
               <Sparkles className="h-6 w-6 text-primary-foreground" />
             </div>
-          )}
-          <div>
-            <h1 className="font-bold text-lg text-primary neon-text-cyan logo-text tracking-wider">
-              {brand.appName}
-            </h1>
-            <p className="text-xs text-muted-foreground">{brand.appSubtitle}</p>
+            <div>
+              <h1 className="font-bold text-lg text-primary neon-text-cyan logo-text tracking-wider">
+                {brand.appName}
+              </h1>
+              <p className="text-xs text-muted-foreground">{brand.appSubtitle}</p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
       
       <nav className="flex-1 p-4 overflow-y-auto">
