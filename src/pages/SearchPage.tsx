@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUsage } from '@/hooks/useUsage';
 import { UsageStats } from '@/components/UsageStats';
@@ -41,7 +41,9 @@ import {
   Building2,
   Users,
   Globe,
-  BadgeCheck
+  BadgeCheck,
+  Mail,
+  ExternalLink
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -96,8 +98,62 @@ const SearchPage = () => {
   const [searchName, setSearchName] = useState('');
   const [savingSearch, setSavingSearch] = useState(false);
 
+  // Sugestões de Instagram
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // Buscar sugestões do Instagram (debounced)
+  const fetchSuggestions = useCallback(async (searchQuery: string) => {
+    if (searchSource !== 'instagram' || searchQuery.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    setLoadingSuggestions(true);
+    try {
+      const result = await instagramApi.getSuggestions(searchQuery);
+      setSuggestions(result.suggestions || []);
+      setShowSuggestions(result.suggestions?.length > 0);
+    } catch (error) {
+      console.error('Erro ao buscar sugestões:', error);
+      setSuggestions([]);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  }, [searchSource]);
+
+  // Debounce para sugestões
+  const debounceRef = useRef<NodeJS.Timeout>();
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    
+    if (searchSource === 'instagram' && value.length >= 2) {
+      debounceRef.current = setTimeout(() => {
+        fetchSuggestions(value);
+      }, 500);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  // Selecionar sugestão
+  const selectSuggestion = (username: string) => {
+    setQuery(username);
+    setShowSuggestions(false);
+    setSuggestions([]);
+  };
+
   const handleSearch = useCallback(async (page: number = 1, accumulate: boolean = false) => {
     if (!query.trim()) return;
+    
+    setShowSuggestions(false);
     
     if (isAuthenticated) {
       const canSearch = await checkLimit('search');
@@ -407,14 +463,63 @@ const SearchPage = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => handleQueryChange(e.target.value)}
             onKeyDown={handleKeyDown}
+            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
             placeholder={searchSource === 'instagram' 
-              ? "@username ou #hashtag (ex: @clinicamedica ou #estetica)"
+              ? "Digite um nome (ex: stockzero, clinicamedica)"
               : "clinica medica em rio preto"
             }
             className="pl-10 h-12 text-base"
           />
+          
+          {/* Sugestões de Instagram */}
+          {searchSource === 'instagram' && showSuggestions && suggestions.length > 0 && (
+            <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-lg overflow-hidden">
+              {loadingSuggestions && (
+                <div className="flex items-center justify-center p-3">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              )}
+              {suggestions.map((suggestion) => (
+                <button
+                  key={suggestion.username}
+                  type="button"
+                  className="w-full flex items-center gap-3 p-3 hover:bg-muted/50 text-left transition-colors"
+                  onClick={() => selectSuggestion(suggestion.username)}
+                >
+                  {suggestion.profilePicUrl ? (
+                    <img 
+                      src={suggestion.profilePicUrl} 
+                      alt={suggestion.username}
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                      <Instagram className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-foreground">@{suggestion.username}</span>
+                      {suggestion.isVerified && <BadgeCheck className="h-4 w-4 text-primary" />}
+                    </div>
+                    <p className="text-sm text-muted-foreground truncate">{suggestion.fullName}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Users className="h-3 w-3" />
+                      {suggestion.followersCount >= 1000 
+                        ? `${(suggestion.followersCount / 1000).toFixed(1)}K`
+                        : suggestion.followersCount || 0
+                      }
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <Button 
           onClick={handleNewSearch} 
@@ -491,8 +596,8 @@ const SearchPage = () => {
           <>
             <Instagram className="h-4 w-4 text-primary" />
             <span>
-              <strong>Influenciadores:</strong> Use @username para perfil específico ou #hashtag para busca. 
-              Ex: "@clinicamedica" ou "#esteticasaopaulo"
+              <strong>Influenciadores:</strong> Digite o nome e veja sugestões de perfis similares. 
+              Os dados de contato (email, telefone, site) são extraídos automaticamente da bio.
             </span>
           </>
         ) : (
@@ -797,26 +902,21 @@ const SearchPage = () => {
                     />
 
                     {/* Conteúdo */}
-                    <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex-1 min-w-0 space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-foreground">
                           {lead.company}
                         </span>
                         {isInstagram && serpData.username && (
-                          <a 
-                            href={`https://instagram.com/${serpData.username}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-pink-500 hover:underline"
-                          >
+                          <span className="text-sm text-muted-foreground">
                             @{serpData.username}
-                          </a>
+                          </span>
                         )}
                         {serpData.isVerified && (
-                          <BadgeCheck className="h-4 w-4 text-blue-500" />
+                          <BadgeCheck className="h-4 w-4 text-primary" />
                         )}
                         {lead.whatsapp && (
-                          <Badge variant="default" className="bg-emerald-600 hover:bg-emerald-700 text-xs">
+                          <Badge variant="default" className="bg-success hover:bg-success/90 text-xs">
                             WhatsApp
                           </Badge>
                         )}
@@ -827,11 +927,46 @@ const SearchPage = () => {
                         )}
                       </div>
 
-                      {/* Bio do Instagram */}
+                      {/* Bio do Instagram com destaque para contatos */}
                       {isInstagram && serpData.biography && (
-                        <p className="text-sm text-muted-foreground line-clamp-2">
-                          {serpData.biography}
-                        </p>
+                        <div className="text-sm text-muted-foreground">
+                          <p className="line-clamp-2">{serpData.biography}</p>
+                        </div>
+                      )}
+
+                      {/* Dados de contato extraídos da bio */}
+                      {isInstagram && (lead.phone || lead.email || lead.website) && (
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {lead.phone && (
+                            <a 
+                              href={`tel:${lead.phone}`}
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-muted rounded text-xs hover:bg-muted/80"
+                            >
+                              <Phone className="h-3 w-3" />
+                              {lead.phone}
+                            </a>
+                          )}
+                          {lead.email && (
+                            <a 
+                              href={`mailto:${lead.email}`}
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-muted rounded text-xs hover:bg-muted/80"
+                            >
+                              <Mail className="h-3 w-3" />
+                              {lead.email}
+                            </a>
+                          )}
+                          {lead.website && (
+                            <a 
+                              href={lead.website}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-muted rounded text-xs hover:bg-muted/80"
+                            >
+                              <Globe className="h-3 w-3" />
+                              Site
+                            </a>
+                          )}
+                        </div>
                       )}
 
                       {/* Endereço (Google) */}
@@ -842,8 +977,8 @@ const SearchPage = () => {
                         </div>
                       )}
 
-                      {/* Telefone */}
-                      {lead.phone && (
+                      {/* Telefone (Google) */}
+                      {!isInstagram && lead.phone && (
                         <div className="flex items-center gap-1 text-sm">
                           <Phone className="h-3 w-3 text-muted-foreground" />
                           <span>{lead.phone}</span>
@@ -852,7 +987,7 @@ const SearchPage = () => {
                               href={`https://wa.me/55${lead.whatsapp}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-emerald-500 hover:text-emerald-400"
+                              className="text-success hover:text-success/80"
                             >
                               <MessageCircle className="h-3 w-3" />
                             </a>
@@ -860,18 +995,18 @@ const SearchPage = () => {
                         </div>
                       )}
 
-                      {/* Email */}
-                      {lead.email && (
+                      {/* Email (Google) */}
+                      {!isInstagram && lead.email && (
                         <div className="flex items-center gap-1 text-sm">
-                          <Globe className="h-3 w-3 text-muted-foreground" />
+                          <Mail className="h-3 w-3 text-muted-foreground" />
                           <a href={`mailto:${lead.email}`} className="text-primary hover:underline">
                             {lead.email}
                           </a>
                         </div>
                       )}
 
-                      {/* Website */}
-                      {lead.website && (
+                      {/* Website (Google) */}
+                      {!isInstagram && lead.website && (
                         <div className="flex items-center gap-1 text-sm">
                           <Globe className="h-3 w-3 text-muted-foreground" />
                           <a 
@@ -885,19 +1020,37 @@ const SearchPage = () => {
                         </div>
                       )}
 
-                      {/* Botão de detalhes */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-xs"
-                        onClick={() => {
-                          setSelectedLead(lead);
-                          setModalOpen(true);
-                        }}
-                      >
-                        <Info className="h-3 w-3 mr-1" />
-                        Detalhes
-                      </Button>
+                      {/* Botões de ação */}
+                      <div className="flex items-center gap-2 pt-1">
+                        {isInstagram && serpData.username && (
+                          <a
+                            href={`https://instagram.com/${serpData.username}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-3 text-xs"
+                            >
+                              <Instagram className="h-3 w-3 mr-1" />
+                              Ver Perfil
+                            </Button>
+                          </a>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => {
+                            setSelectedLead(lead);
+                            setModalOpen(true);
+                          }}
+                        >
+                          <Info className="h-3 w-3 mr-1" />
+                          Detalhes
+                        </Button>
+                      </div>
                     </div>
 
                     {/* Lado direito */}

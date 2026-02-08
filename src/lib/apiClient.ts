@@ -303,6 +303,22 @@ export const instagramApi = {
       body: JSON.stringify({ username }),
     });
   },
+
+  async getSuggestions(query: string) {
+    return apiRequest<{
+      suggestions: Array<{
+        username: string;
+        fullName: string;
+        profilePicUrl: string;
+        followersCount: number;
+        isVerified: boolean;
+        isBusinessAccount: boolean;
+      }>;
+    }>('/instagram/suggestions', {
+      method: 'POST',
+      body: JSON.stringify({ query }),
+    });
+  },
 };
 
 // API Saved Searches (pesquisas salvas)
