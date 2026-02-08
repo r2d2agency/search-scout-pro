@@ -54,7 +54,7 @@ export default function SerpKeysPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (user?.role === 'admin' || user?.role === 'superadmin') {
+    if (user?.role === 'superadmin') {
       loadKeys();
     }
   }, [user]);
@@ -74,8 +74,8 @@ export default function SerpKeysPage() {
     }
   };
 
-  // Verificar se é admin/superadmin
-  if (user?.role !== 'admin' && user?.role !== 'superadmin') {
+  // Verificar se é superadmin
+  if (user?.role !== 'superadmin') {
     return <Navigate to="/" replace />;
   }
 

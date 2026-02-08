@@ -22,10 +22,13 @@ const navItems = [
 ];
 
 const adminItems = [
-  { to: '/admin/serp-keys', icon: Key, label: 'Chaves SERP API' },
   { to: '/admin/plans', icon: CreditCard, label: 'Gerenciar Planos' },
   { to: '/admin/users', icon: Users, label: 'Gerenciar Usuários' },
   { to: '/admin', icon: Settings, label: 'Configurações' },
+];
+
+const superadminItems = [
+  { to: '/admin/serp-keys', icon: Key, label: 'Chaves SERP API' },
 ];
 
 export function Sidebar() {
@@ -89,6 +92,25 @@ export function Sidebar() {
               </p>
             </div>
             <ul className="space-y-2">
+              {/* Superadmin-only items */}
+              {user?.role === 'superadmin' && superadminItems.map((item) => (
+                <li key={item.to}>
+                  <NavLink
+                    to={item.to}
+                    className={({ isActive }) =>
+                      cn(
+                        'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300',
+                        'text-sidebar-foreground hover:bg-sidebar-accent hover:text-accent',
+                        isActive && 'bg-accent/10 text-accent neon-border-pink'
+                      )
+                    }
+                  >
+                    <item.icon className="h-5 w-5" />
+                    <span className="font-medium">{item.label}</span>
+                  </NavLink>
+                </li>
+              ))}
+              {/* Admin + Superadmin items */}
               {adminItems.map((item) => (
                 <li key={item.to}>
                   <NavLink

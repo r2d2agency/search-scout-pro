@@ -1,11 +1,11 @@
 const express = require('express');
 const db = require('../config/database');
-const { authenticate, requireAdmin } = require('../middleware/auth');
+const { authenticate, requireSuperAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Listar todas as chaves SERP (admin only)
-router.get('/', authenticate, requireAdmin, async (req, res) => {
+// Listar todas as chaves SERP (superadmin only)
+router.get('/', authenticate, requireSuperAdmin, async (req, res) => {
   try {
     const result = await db.query(`
       SELECT id, name, 
@@ -22,8 +22,8 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
   }
 });
 
-// Adicionar nova chave SERP
-router.post('/', authenticate, requireAdmin, async (req, res) => {
+// Adicionar nova chave SERP (superadmin only)
+router.post('/', authenticate, requireSuperAdmin, async (req, res) => {
   try {
     const { name, apiKey, monthlyLimit = 100 } = req.body;
 
@@ -45,8 +45,8 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
   }
 });
 
-// Atualizar chave SERP
-router.put('/:id', authenticate, requireAdmin, async (req, res) => {
+// Atualizar chave SERP (superadmin only)
+router.put('/:id', authenticate, requireSuperAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, apiKey, isActive, monthlyLimit } = req.body;
@@ -92,8 +92,8 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
   }
 });
 
-// Deletar chave SERP
-router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
+// Deletar chave SERP (superadmin only)
+router.delete('/:id', authenticate, requireSuperAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -113,8 +113,8 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
   }
 });
 
-// Resetar contador de uso mensal (pode ser chamado por cron)
-router.post('/reset-usage', authenticate, requireAdmin, async (req, res) => {
+// Resetar contador de uso mensal (superadmin only)
+router.post('/reset-usage', authenticate, requireSuperAdmin, async (req, res) => {
   try {
     await db.query('UPDATE serp_api_keys SET usage_count = 0');
     res.json({ message: 'Contadores resetados com sucesso' });
