@@ -1,10 +1,9 @@
 import { useState, useCallback } from 'react';
 import { Lead, SearchResult, PaginationInfo } from '@/types/lead';
 import { toast } from '@/hooks/use-toast';
+import { leadsApi } from '@/lib/apiClient';
 
-// Mock data para desenvolvimento (sem backend conectado)
-const mockLeads: Lead[] = [];
-let mockIdCounter = 1;
+let idCounter = 1;
 
 export function useLeads() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -17,18 +16,16 @@ export function useLeads() {
 
   const extractLeadsFromResults = useCallback((results: SearchResult[], searchTerm: string): Lead[] => {
     return results.map((result) => {
-      // Extrair informações do snippet e título
       const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
       const phoneRegex = /(?:\+55\s?)?(?:\(?\d{2}\)?[\s-]?)?\d{4,5}[\s-]?\d{4}/g;
       
       const emails = (result.snippet + ' ' + result.title).match(emailRegex);
       const phones = (result.snippet + ' ' + result.title).match(phoneRegex);
       
-      // Tentar extrair nome da empresa do título
       const companyName = result.title.split(' - ')[0].split(' | ')[0].trim();
       
       return {
-        id: `lead-${mockIdCounter++}`,
+        id: `lead-${idCounter++}`,
         company: companyName,
         website: result.link,
         phone: phones?.[0] || null,
@@ -46,34 +43,23 @@ export function useLeads() {
     setIsLoading(true);
     
     try {
-      // Simulação de busca (substituir pela API real)
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // TODO: Integrar com SERP API real quando configurada
+      // Por enquanto, mostra mensagem que precisa configurar
+      toast({
+        title: 'SERP API não configurada',
+        description: 'Configure a SERP API nas configurações do admin para realizar pesquisas reais.',
+        variant: 'destructive',
+      });
       
-      // Mock results para demonstração
-      const mockResults: SearchResult[] = Array.from({ length: 30 }, (_, i) => ({
-        title: `Empresa ${(page - 1) * 30 + i + 1} - ${query}`,
-        link: `https://empresa${(page - 1) * 30 + i + 1}.com.br`,
-        snippet: `Empresa especializada em ${query}. Contato: (11) 9${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)} - email@empresa${i + 1}.com.br`,
-        position: (page - 1) * 30 + i + 1,
-      }));
-
-      const extractedLeads = extractLeadsFromResults(mockResults, query);
-      
+      // Limpar resultados anteriores se for nova pesquisa
       if (page === 1) {
-        setLeads(extractedLeads);
-      } else {
-        setLeads(prev => [...prev, ...extractedLeads]);
+        setLeads([]);
       }
-
+      
       setPagination({
         currentPage: page,
-        totalResults: page * 30 + (Math.random() > 0.3 ? 30 : 0),
-        hasMore: page < 5,
-      });
-
-      toast({
-        title: 'Pesquisa concluída',
-        description: `${extractedLeads.length} resultados encontrados`,
+        totalResults: 0,
+        hasMore: false,
       });
     } catch (error) {
       toast({
@@ -84,7 +70,7 @@ export function useLeads() {
     } finally {
       setIsLoading(false);
     }
-  }, [extractLeadsFromResults]);
+  }, []);
 
   const loadMore = useCallback(async (query: string) => {
     if (pagination.hasMore && !isLoading) {
@@ -98,18 +84,11 @@ export function useLeads() {
     ));
 
     try {
-      // Simulação da verificação (substituir pela API real)
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const isValid = Math.random() > 0.3;
-      
-      setLeads(prev => prev.map(lead => 
-        lead.id === leadId ? { ...lead, whatsappValid: isValid } : lead
-      ));
-
+      // TODO: Integrar com Evolution API real quando configurada
       toast({
-        title: isValid ? 'WhatsApp válido' : 'WhatsApp inválido',
-        description: phone,
-        variant: isValid ? 'default' : 'destructive',
+        title: 'Evolution API não configurada',
+        description: 'Configure a Evolution API nas configurações do admin.',
+        variant: 'destructive',
       });
     } catch (error) {
       toast({
@@ -126,15 +105,14 @@ export function useLeads() {
     for (const lead of leadsWithPhone) {
       if (lead.phone) {
         await verifyWhatsApp(lead.id, lead.phone);
-        await new Promise(resolve => setTimeout(resolve, 500)); // Rate limiting
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
   }, [leads, verifyWhatsApp]);
 
   const saveAllLeads = useCallback(async () => {
     try {
-      // Simulação de salvar (substituir pela API real)
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await leadsApi.saveBulk(leads);
       
       toast({
         title: 'Leads salvos',
