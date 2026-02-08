@@ -7,7 +7,8 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install --omit=dev
 
-# Copiar código fonte
+# Copiar schema SQL e código fonte
+COPY schema.sql ./
 COPY src ./src
 
 # Expor porta
@@ -17,5 +18,5 @@ EXPOSE 3000
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Comando para iniciar
-CMD ["node", "src/index.js"]
+# Script de inicialização: init DB + start server
+CMD ["sh", "-c", "node src/init-db.js && node src/index.js"]
