@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { BrandProvider } from "./contexts/BrandContext";
 import { Layout } from "./components/Layout";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import DashboardPage from "./pages/DashboardPage";
 import SearchPage from "./pages/SearchPage";
 import SavedLeadsPage from "./pages/SavedLeadsPage";
@@ -32,15 +33,17 @@ const App = () => (
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               
-              {/* App pages - com layout */}
-              <Route element={<Layout />}>
-                <Route path="/" element={<DashboardPage />} />
-                <Route path="/search" element={<SearchPage />} />
-                <Route path="/leads" element={<SavedLeadsPage />} />
-                <Route path="/pricing" element={<PricingPage />} />
-                <Route path="/admin" element={<AdminPage />} />
-                <Route path="/admin/plans" element={<PlansPage />} />
-                <Route path="/admin/users" element={<UsersPage />} />
+              {/* App pages - protegidas e com layout */}
+              <Route element={<ProtectedRoute />}>
+                <Route element={<Layout />}>
+                  <Route path="/" element={<DashboardPage />} />
+                  <Route path="/search" element={<SearchPage />} />
+                  <Route path="/leads" element={<SavedLeadsPage />} />
+                  <Route path="/pricing" element={<PricingPage />} />
+                  <Route path="/admin" element={<AdminPage />} />
+                  <Route path="/admin/plans" element={<PlansPage />} />
+                  <Route path="/admin/users" element={<UsersPage />} />
+                </Route>
               </Route>
               
               <Route path="*" element={<NotFound />} />
