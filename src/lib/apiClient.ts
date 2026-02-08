@@ -190,3 +190,32 @@ export const settingsApi = {
     });
   },
 };
+
+// API SERP Keys
+export const serpKeysApi = {
+  async list() {
+    return apiRequest<any[]>('/serp-keys');
+  },
+
+  async create(data: { name: string; apiKey: string; monthlyLimit?: number }) {
+    return apiRequest<any>('/serp-keys', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: string, data: { name?: string; apiKey?: string; isActive?: boolean; monthlyLimit?: number }) {
+    return apiRequest<any>(`/serp-keys/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async delete(id: string) {
+    return apiRequest<void>(`/serp-keys/${id}`, { method: 'DELETE' });
+  },
+
+  async resetUsage() {
+    return apiRequest<void>('/serp-keys/reset-usage', { method: 'POST' });
+  },
+};

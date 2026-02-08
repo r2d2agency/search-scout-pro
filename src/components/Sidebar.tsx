@@ -7,7 +7,8 @@ import {
   Users,
   CreditCard,
   DollarSign,
-  Sparkles
+  Sparkles,
+  Key
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,6 +22,7 @@ const navItems = [
 ];
 
 const adminItems = [
+  { to: '/admin/serp-keys', icon: Key, label: 'Chaves SERP API' },
   { to: '/admin/plans', icon: CreditCard, label: 'Gerenciar Planos' },
   { to: '/admin/users', icon: Users, label: 'Gerenciar Usuários' },
   { to: '/admin', icon: Settings, label: 'Configurações' },

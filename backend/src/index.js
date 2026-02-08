@@ -9,6 +9,7 @@ const usersRoutes = require('./routes/users');
 const plansRoutes = require('./routes/plans');
 const leadsRoutes = require('./routes/leads');
 const settingsRoutes = require('./routes/settings');
+const serpKeysRoutes = require('./routes/serp-keys');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -48,6 +49,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/plans', plansRoutes);
 app.use('/api/leads', leadsRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/serp-keys', serpKeysRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
