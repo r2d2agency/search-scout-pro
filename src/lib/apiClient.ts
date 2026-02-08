@@ -262,6 +262,49 @@ export const searchApi = {
   },
 };
 
+// API Instagram (via Apify)
+export const instagramApi = {
+  async search(query: string, limit = 20) {
+    return apiRequest<{
+      leads: any[];
+      pagination: {
+        currentPage: number;
+        totalResults: number;
+        hasMore: boolean;
+      };
+      searchMetadata: {
+        source: string;
+        query: string;
+        totalResults: number;
+      };
+    }>('/instagram/search', {
+      method: 'POST',
+      body: JSON.stringify({ query, limit }),
+    });
+  },
+
+  async getProfile(username: string) {
+    return apiRequest<{
+      username: string;
+      fullName: string;
+      biography: string;
+      externalUrl: string;
+      followersCount: number;
+      followingCount: number;
+      postsCount: number;
+      isVerified: boolean;
+      isBusinessAccount: boolean;
+      businessCategory: string;
+      profilePicUrl: string;
+      email: string | null;
+      phone: string | null;
+    }>('/instagram/profile', {
+      method: 'POST',
+      body: JSON.stringify({ username }),
+    });
+  },
+};
+
 // API Saved Searches (pesquisas salvas)
 export const savedSearchesApi = {
   async list() {
