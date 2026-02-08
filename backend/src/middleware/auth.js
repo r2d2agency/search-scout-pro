@@ -38,10 +38,18 @@ const authenticate = async (req, res, next) => {
   }
 };
 
-// Middleware para verificar se é admin
+// Middleware para verificar se é admin ou superadmin
 const requireAdmin = (req, res, next) => {
-  if (req.user.role !== 'admin') {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
     return res.status(403).json({ message: 'Acesso negado. Requer privilégios de administrador.' });
+  }
+  next();
+};
+
+// Middleware para verificar se é superadmin
+const requireSuperAdmin = (req, res, next) => {
+  if (req.user.role !== 'superadmin') {
+    return res.status(403).json({ message: 'Acesso negado. Requer privilégios de superadmin.' });
   }
   next();
 };
@@ -51,4 +59,4 @@ const generateToken = (userId) => {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
 };
 
-module.exports = { authenticate, requireAdmin, generateToken, JWT_SECRET };
+module.exports = { authenticate, requireAdmin, requireSuperAdmin, generateToken, JWT_SECRET };
