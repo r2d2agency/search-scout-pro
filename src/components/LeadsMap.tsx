@@ -49,8 +49,7 @@ export function LeadsMap({ leads }: LeadsMapProps) {
     const avgLng = coords.reduce((sum, c) => sum + c[1], 0) / coords.length;
 
     // Criar bounds para ajustar zoom
-    const latLngs = coords.map(c => ({ lat: c[0], lng: c[1] }));
-    const leafletBounds = new LatLngBounds(latLngs);
+    const leafletBounds = new LatLngBounds(coords);
 
     return { 
       center: [avgLat, avgLng] as [number, number],
