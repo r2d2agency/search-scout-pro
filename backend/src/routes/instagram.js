@@ -285,18 +285,147 @@ router.post('/profile', authenticate, async (req, res) => {
   }
 });
 
+// Função principal para extrair todos os dados da bio
+function extractAllFromBio(bio, externalUrl) {
+  const result = {
+    phone: null,
+    whatsapp: null,
+    whatsappFromLink: false,
+    email: null,
+    website: null,
+    links: [],
+    allPhones: [],
+    allEmails: [],
+  };
+
+  if (!bio && !externalUrl) return result;
+
+  const fullText = `${bio || ''} ${externalUrl || ''}`;
+
+  // 1. Extrair números de WhatsApp de links (wa.me, api.whatsapp, etc.)
+  const whatsappLinkRegex = /(?:wa\.me|api\.whatsapp\.com\/send\?phone=|whatsapp\.com\/send\?phone=|whats\.link\/|whatsa\.me\/|zap\.link\/)[\/?]?(\d{10,15})/gi;
+  let waMatch;
+  while ((waMatch = whatsappLinkRegex.exec(fullText)) !== null) {
+    const number = waMatch[1]?.replace(/\D/g, '');
+    if (number && number.length >= 10) {
+      result.whatsapp = number;
+      result.whatsappFromLink = true;
+      if (!result.allPhones.some(p => p.number === number)) {
+        result.allPhones.push({ number, source: 'whatsapp_link', isWhatsApp: true });
+      }
+    }
+  }
+
+  // 2. Extrair links wa.me completos
+  const waLinkRegex = /https?:\/\/(?:wa\.me|api\.whatsapp\.com|whatsapp\.com|whats\.link|whatsa\.me|zap\.link)[^\s<>"')}\]]+/gi;
+  const waLinks = fullText.match(waLinkRegex) || [];
+  for (const link of waLinks) {
+    result.links.push({ url: link, type: 'whatsapp' });
+    
+    // Extrair número do link se ainda não temos
+    if (!result.whatsapp) {
+      const numMatch = link.match(/(\d{10,15})/);
+      if (numMatch) {
+        result.whatsapp = numMatch[1];
+        result.whatsappFromLink = true;
+      }
+    }
+  }
+
+  // 3. Extrair emails
+  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi;
+  const emails = fullText.match(emailRegex) || [];
+  result.allEmails = [...new Set(emails)];
+  result.email = result.allEmails[0] || null;
+
+  // 4. Extrair telefones (formato brasileiro e internacional)
+  const phoneRegex = /(?:\+?55\s?)?(?:\(?0?\d{2}\)?[\s.-]?)?\d{4,5}[\s.-]?\d{4}/g;
+  const intlPhoneRegex = /\+\d{1,3}[\s.-]?\d{2,4}[\s.-]?\d{3,4}[\s.-]?\d{3,4}/g;
+
+  const foundPhones = new Set();
+  
+  const brMatches = fullText.match(phoneRegex) || [];
+  for (const match of brMatches) {
+    const cleaned = match.replace(/\D/g, '');
+    if (cleaned.length >= 10 && cleaned.length <= 15) {
+      foundPhones.add(cleaned);
+    }
+  }
+
+  const intlMatches = fullText.match(intlPhoneRegex) || [];
+  for (const match of intlMatches) {
+    const cleaned = match.replace(/\D/g, '');
+    if (cleaned.length >= 10 && cleaned.length <= 15) {
+      foundPhones.add(cleaned);
+    }
+  }
+
+  // Adicionar telefones encontrados (excluindo os que já são WhatsApp de link)
+  for (const phone of foundPhones) {
+    const isAlreadyAdded = result.allPhones.some(p => p.number === phone);
+    if (!isAlreadyAdded) {
+      result.allPhones.push({ number: phone, source: 'bio', isWhatsApp: false });
+    }
+    if (!result.phone) {
+      result.phone = phone;
+    }
+  }
+
+  // Se encontramos WhatsApp mas não telefone, usar o WhatsApp como telefone também
+  if (!result.phone && result.whatsapp) {
+    result.phone = result.whatsapp;
+  }
+
+  // 5. Extrair outros links (não WhatsApp)
+  const linkRegex = /https?:\/\/[^\s<>"')}\]]+/gi;
+  const allLinks = fullText.match(linkRegex) || [];
+  for (const link of allLinks) {
+    // Ignorar links do Instagram
+    if (link.includes('instagram.com')) continue;
+    
+    // Já adicionamos links de WhatsApp
+    const isWaLink = waLinks.some(wa => link === wa);
+    if (isWaLink) continue;
+
+    // Classificar o link
+    let type = 'website';
+    if (link.includes('linktr.ee') || link.includes('linktree')) type = 'linktree';
+    else if (link.includes('bio.link') || link.includes('beacons.ai')) type = 'bio_link';
+    else if (link.includes('youtube.com') || link.includes('youtu.be')) type = 'youtube';
+    else if (link.includes('tiktok.com')) type = 'tiktok';
+    else if (link.includes('facebook.com') || link.includes('fb.com')) type = 'facebook';
+    else if (link.includes('twitter.com') || link.includes('x.com')) type = 'twitter';
+    else if (link.includes('linkedin.com')) type = 'linkedin';
+    
+    if (!result.links.some(l => l.url === link)) {
+      result.links.push({ url: link, type });
+    }
+    
+    // Primeiro link não-social como website
+    if (!result.website && type === 'website') {
+      result.website = link;
+    }
+  }
+
+  return result;
+}
+
 // Extrair lead de resultado do Instagram
 function extractLeadFromInstagram(item, searchTerm, position) {
   const bio = item.biography || '';
+  const externalUrl = item.externalUrl || '';
+  
+  // Extrair todos os dados da bio
+  const extractedData = extractAllFromBio(bio, externalUrl);
   
   return {
     id: `ig-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     company: item.fullName || item.username || 'Sem nome',
-    website: item.externalUrl || null,
-    phone: extractPhoneFromBio(bio),
-    whatsapp: extractPhoneFromBio(bio),
-    email: extractEmailFromBio(bio),
-    whatsappValid: null,
+    website: extractedData.website || externalUrl || null,
+    phone: extractedData.phone,
+    whatsapp: extractedData.whatsapp,
+    email: extractedData.email,
+    whatsappValid: extractedData.whatsappFromLink ? true : null, // Se veio de wa.me, já sabemos que é válido
     source: 'Instagram',
     searchTerm,
     createdAt: new Date().toISOString(),
@@ -318,26 +447,15 @@ function extractLeadFromInstagram(item, searchTerm, position) {
       isBusinessAccount: item.isBusinessAccount,
       businessCategory: item.businessCategoryName,
       profilePicUrl: item.profilePicUrl,
-      externalUrl: item.externalUrl,
+      externalUrl: externalUrl,
       profileUrl: `https://instagram.com/${item.username}`,
+      // Dados extraídos da bio
+      extractedLinks: extractedData.links,
+      extractedPhones: extractedData.allPhones,
+      extractedEmails: extractedData.allEmails,
+      whatsappFromLink: extractedData.whatsappFromLink,
     }
   };
-}
-
-// Extrair email da bio
-function extractEmailFromBio(bio) {
-  if (!bio) return null;
-  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi;
-  const matches = bio.match(emailRegex);
-  return matches ? matches[0] : null;
-}
-
-// Extrair telefone da bio
-function extractPhoneFromBio(bio) {
-  if (!bio) return null;
-  const phoneRegex = /(?:\+55\s?)?(?:\(?\d{2}\)?[\s.-]?)?\d{4,5}[\s.-]?\d{4}/g;
-  const matches = bio.match(phoneRegex);
-  return matches ? matches[0].replace(/\D/g, '') : null;
 }
 
 module.exports = router;
