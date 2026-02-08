@@ -11,6 +11,7 @@ const leadsRoutes = require('./routes/leads');
 const settingsRoutes = require('./routes/settings');
 const serpKeysRoutes = require('./routes/serp-keys');
 const searchRoutes = require('./routes/search');
+const savedSearchesRoutes = require('./routes/saved-searches');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -77,6 +78,7 @@ app.use('/api/leads', leadsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/serp-keys', serpKeysRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/saved-searches', savedSearchesRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

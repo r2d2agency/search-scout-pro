@@ -81,56 +81,96 @@ export async function deleteLead(id: string): Promise<void> {
   });
 }
 
-// Exportar leads para CSV com dados completos
+// Exportar leads para XLSX com dados completos
+export function exportToXLSX(leads: Lead[]): void {
+  import('xlsx').then(XLSX => {
+    // Preparar dados para a planilha
+    const data = leads.map(lead => {
+      const serpData = lead.serpData || ({} as any);
+      
+      return {
+        'Empresa': lead.company || '',
+        'Website': lead.website || '',
+        'Telefone': lead.phone || '',
+        'WhatsApp': lead.whatsapp || '',
+        'Email': lead.email || '',
+        'WhatsApp Válido': lead.whatsappValid === null ? 'Não verificado' : lead.whatsappValid ? 'Sim' : 'Não',
+        'Fonte': lead.source || '',
+        'Termo de Pesquisa': lead.searchTerm || '',
+        'Data': new Date(lead.createdAt).toLocaleDateString('pt-BR'),
+        // Dados do Google Meu Negócio
+        'Endereço': serpData.address || '',
+        'Avaliação': serpData.rating || '',
+        'Num. Avaliações': serpData.ratingCount || serpData.reviews || '',
+        'Categoria': serpData.category || serpData.type || '',
+        'Horário': typeof serpData.openingHours === 'object' 
+          ? JSON.stringify(serpData.openingHours) 
+          : serpData.openingHours || '',
+        'Faixa de Preço': serpData.priceLevel || '',
+        'Descrição': serpData.description || serpData.snippet || '',
+        'Latitude': serpData.latitude || '',
+        'Longitude': serpData.longitude || '',
+        'Google Maps URL': serpData.googleMapsUrl || '',
+        'Place ID': serpData.placeId || '',
+        'CID': serpData.cid || ''
+      };
+    });
+
+    // Criar workbook e worksheet
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Leads');
+
+    // Ajustar largura das colunas
+    const colWidths = [
+      { wch: 30 }, // Empresa
+      { wch: 35 }, // Website
+      { wch: 15 }, // Telefone
+      { wch: 15 }, // WhatsApp
+      { wch: 25 }, // Email
+      { wch: 15 }, // WhatsApp Válido
+      { wch: 20 }, // Fonte
+      { wch: 25 }, // Termo de Pesquisa
+      { wch: 12 }, // Data
+      { wch: 40 }, // Endereço
+      { wch: 10 }, // Avaliação
+      { wch: 15 }, // Num. Avaliações
+      { wch: 20 }, // Categoria
+      { wch: 30 }, // Horário
+      { wch: 15 }, // Faixa de Preço
+      { wch: 50 }, // Descrição
+      { wch: 15 }, // Latitude
+      { wch: 15 }, // Longitude
+      { wch: 40 }, // Google Maps URL
+      { wch: 25 }, // Place ID
+      { wch: 20 }, // CID
+    ];
+    worksheet['!cols'] = colWidths;
+
+    // Baixar arquivo
+    XLSX.writeFile(workbook, `leads_${new Date().toISOString().split('T')[0]}.xlsx`);
+  });
+}
+
+// Manter CSV como backup
 export function exportToCSV(leads: Lead[]): void {
-  // Headers básicos + campos extras da SERP
   const headers = [
-    'Empresa',
-    'Website',
-    'Telefone',
-    'WhatsApp',
-    'Email',
-    'WhatsApp Válido',
-    'Fonte',
-    'Termo de Pesquisa',
-    'Data',
-    // Dados extras da SERP
-    'Posição',
-    'Descrição',
-    'Endereço',
-    'Avaliação',
-    'Num. Avaliações',
-    'Categoria',
-    'Horário',
-    'Faixa de Preço'
+    'Empresa', 'Website', 'Telefone', 'WhatsApp', 'Email', 'WhatsApp Válido',
+    'Fonte', 'Termo de Pesquisa', 'Data', 'Endereço', 'Avaliação', 'Num. Avaliações',
+    'Categoria', 'Horário', 'Faixa de Preço'
   ];
   
   const rows = leads.map(lead => {
     const serpData = lead.serpData || ({} as any);
-    
     return [
-      lead.company,
-      lead.website || '',
-      lead.phone || '',
-      lead.whatsapp || '',
-      lead.email || '',
-      lead.whatsappValid === null ? 'Não verificado' : lead.whatsappValid ? 'Sim' : 'Não',
-      lead.source,
-      lead.searchTerm,
-      new Date(lead.createdAt).toLocaleDateString('pt-BR'),
-      // Dados extras
-      serpData.position || '',
-      serpData.snippet || serpData.description || '',
-      serpData.address || '',
-      serpData.rating || '',
-      serpData.reviews || '',
-      serpData.businessType || serpData.type || '',
-      serpData.hours || '',
-      serpData.priceLevel || ''
+      lead.company, lead.website || '', lead.phone || '', lead.whatsapp || '',
+      lead.email || '', lead.whatsappValid === null ? 'Não verificado' : lead.whatsappValid ? 'Sim' : 'Não',
+      lead.source, lead.searchTerm, new Date(lead.createdAt).toLocaleDateString('pt-BR'),
+      serpData.address || '', serpData.rating || '', serpData.ratingCount || '',
+      serpData.category || '', serpData.openingHours || '', serpData.priceLevel || ''
     ];
   });
 
-  // Escapar valores para CSV
   const escapeCSV = (value: any): string => {
     const str = String(value || '');
     if (str.includes(',') || str.includes('"') || str.includes('\n')) {
@@ -144,7 +184,6 @@ export function exportToCSV(leads: Lead[]): void {
     ...rows.map(row => row.map(cell => escapeCSV(cell)).join(',')),
   ].join('\n');
 
-  // Adicionar BOM para UTF-8 (compatibilidade com Excel)
   const BOM = '\uFEFF';
   const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
