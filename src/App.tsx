@@ -16,6 +16,7 @@ import RegisterPage from "./pages/RegisterPage";
 import PlansPage from "./pages/PlansPage";
 import UsersPage from "./pages/UsersPage";
 import PricingPage from "./pages/PricingPage";
+import SerpKeysPage from "./pages/SerpKeysPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,6 +44,7 @@ const App = () => (
                   <Route path="/admin" element={<AdminPage />} />
                   <Route path="/admin/plans" element={<PlansPage />} />
                   <Route path="/admin/users" element={<UsersPage />} />
+                  <Route path="/admin/serp-keys" element={<SerpKeysPage />} />
                 </Route>
               </Route>
               

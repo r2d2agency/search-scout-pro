@@ -98,11 +98,26 @@ CREATE TABLE IF NOT EXISTS settings (
 
 -- Inserir configurações padrão
 INSERT INTO settings (key, value) VALUES
-('serp_api_key', ''),
 ('evolution_api_url', ''),
 ('evolution_api_key', ''),
 ('evolution_instance', '')
 ON CONFLICT (key) DO NOTHING;
+
+-- =====================================================
+-- TABELA: serp_api_keys (múltiplas chaves SERP API)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS serp_api_keys (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL,
+    api_key VARCHAR(255) NOT NULL,
+    is_active BOOLEAN DEFAULT true,
+    usage_count INT DEFAULT 0,
+    monthly_limit INT DEFAULT 100,
+    last_used_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_serp_api_keys_active ON serp_api_keys(is_active);
 
 -- =====================================================
 -- TABELA: sessions (sessões de autenticação)
