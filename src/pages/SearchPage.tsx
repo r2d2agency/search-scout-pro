@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import {
   Select,
   SelectContent,
@@ -31,20 +32,20 @@ import {
   Download,
   Save,
   FileSpreadsheet,
-  FileJson
+  FileJson,
+  PhoneOff
 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from '@/hooks/use-toast';
 import { searchApi, leadsApi } from '@/lib/apiClient';
 import { exportToCSV, exportToJSON } from '@/lib/api';
 import { Lead } from '@/types/lead';
-
-const ITEMS_PER_PAGE = 30;
 
 const SearchPage = () => {
   const { isAuthenticated } = useAuth();
@@ -56,7 +57,6 @@ const SearchPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
   const [hasMore, setHasMore] = useState(false);
-  const [currentQuery, setCurrentQuery] = useState('');
   
   // Seleção
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -64,6 +64,7 @@ const SearchPage = () => {
   // Filtros
   const [filterType, setFilterType] = useState('all');
   const [filterRating, setFilterRating] = useState('all');
+  const [filterWhatsApp, setFilterWhatsApp] = useState('all');
   
   // Modal de detalhes
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -85,7 +86,6 @@ const SearchPage = () => {
     }
 
     setIsLoading(true);
-    setCurrentQuery(query);
     
     try {
       const response = await searchApi.search(query, page);
@@ -150,6 +150,11 @@ const SearchPage = () => {
     setSelectedIds(new Set(filteredLeads.map(l => l.id)));
   };
 
+  const selectWithoutWhatsApp = () => {
+    const filteredLeads = getFilteredLeads().filter(l => !l.whatsapp);
+    setSelectedIds(new Set(filteredLeads.map(l => l.id)));
+  };
+
   const clearSelection = () => {
     setSelectedIds(new Set());
   };
@@ -176,21 +181,31 @@ const SearchPage = () => {
         const minRating = parseFloat(filterRating);
         if (rating < minRating) return false;
       }
+
+      // Filtro por WhatsApp
+      if (filterWhatsApp === 'with' && !lead.whatsapp) return false;
+      if (filterWhatsApp === 'without' && lead.whatsapp) return false;
       
       return true;
     });
   };
 
-  // Ações
-  const saveSelected = async () => {
-    const selected = leads.filter(l => selectedIds.has(l.id));
-    if (selected.length === 0) return;
+  // Helpers para dados
+  const leadsWithWhatsApp = leads.filter(l => l.whatsapp);
+  const leadsWithoutWhatsApp = leads.filter(l => !l.whatsapp);
+
+  // Ações de Salvar
+  const saveLeads = async (leadsToSave: Lead[]) => {
+    if (leadsToSave.length === 0) {
+      toast({ title: 'Nenhum lead para salvar' });
+      return;
+    }
 
     try {
-      await leadsApi.saveBulk(selected);
+      await leadsApi.saveBulk(leadsToSave);
       toast({
         title: 'Leads salvos',
-        description: `${selected.length} leads salvos com sucesso`,
+        description: `${leadsToSave.length} leads salvos com sucesso`,
       });
     } catch (error) {
       toast({
@@ -201,18 +216,23 @@ const SearchPage = () => {
     }
   };
 
-  const exportSelected = (format: 'csv' | 'json') => {
-    const selected = leads.filter(l => selectedIds.has(l.id));
-    if (selected.length === 0) {
-      toast({ title: 'Selecione leads para exportar' });
+  // Ações de Exportar
+  const exportLeads = (leadsToExport: Lead[], format: 'csv' | 'json') => {
+    if (leadsToExport.length === 0) {
+      toast({ title: 'Nenhum lead para exportar' });
       return;
     }
     
     if (format === 'csv') {
-      exportToCSV(selected);
+      exportToCSV(leadsToExport);
     } else {
-      exportToJSON(selected);
+      exportToJSON(leadsToExport);
     }
+    
+    toast({
+      title: 'Exportação concluída',
+      description: `${leadsToExport.length} leads exportados`,
+    });
   };
 
   const filteredLeads = getFilteredLeads();
@@ -267,7 +287,7 @@ const SearchPage = () => {
       {leads.length > 0 && (
         <>
           {/* Paginação superior */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -294,15 +314,28 @@ const SearchPage = () => {
             
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Info className="h-4 w-4" />
-              Mostrando {startIndex}-{endIndex} de {totalResults}+ resultados disponíveis
+              Mostrando {startIndex}-{endIndex} de {totalResults}+ resultados
             </div>
+          </div>
+
+          {/* Estatísticas rápidas */}
+          <div className="flex gap-4 text-sm">
+            <span className="text-muted-foreground">
+              Total: <strong>{leads.length}</strong>
+            </span>
+            <span className="text-emerald-500">
+              Com WhatsApp: <strong>{leadsWithWhatsApp.length}</strong>
+            </span>
+            <span className="text-muted-foreground">
+              Sem WhatsApp: <strong>{leadsWithoutWhatsApp.length}</strong>
+            </span>
           </div>
 
           {/* Filtros */}
           <div className="flex flex-wrap items-center gap-3">
             <Select value={filterType} onValueChange={setFilterType}>
               <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Todos" />
+                <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
@@ -311,12 +344,23 @@ const SearchPage = () => {
               </SelectContent>
             </Select>
 
-            <Select value={filterRating} onValueChange={setFilterRating}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Todas as avaliações" />
+            <Select value={filterWhatsApp} onValueChange={setFilterWhatsApp}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="WhatsApp" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas as avaliações</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="with">Com WhatsApp</SelectItem>
+                <SelectItem value="without">Sem WhatsApp</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filterRating} onValueChange={setFilterRating}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Avaliação" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas avaliações</SelectItem>
                 <SelectItem value="4">4+ estrelas</SelectItem>
                 <SelectItem value="4.5">4.5+ estrelas</SelectItem>
               </SelectContent>
@@ -325,13 +369,14 @@ const SearchPage = () => {
             <Button variant="ghost" size="sm" onClick={() => {
               setFilterType('all');
               setFilterRating('all');
+              setFilterWhatsApp('all');
             }}>
               <X className="h-4 w-4 mr-1" />
-              Limpar
+              Limpar filtros
             </Button>
           </div>
 
-          {/* Ações em lote */}
+          {/* Ações de Seleção */}
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" onClick={selectAll}>
               <CheckSquare className="h-4 w-4 mr-1" />
@@ -339,11 +384,15 @@ const SearchPage = () => {
             </Button>
             <Button variant="outline" size="sm" onClick={selectWithWhatsApp}>
               <MessageCircle className="h-4 w-4 mr-1" />
-              Selecionar WhatsApp
+              Com WhatsApp
+            </Button>
+            <Button variant="outline" size="sm" onClick={selectWithoutWhatsApp}>
+              <PhoneOff className="h-4 w-4 mr-1" />
+              Sem WhatsApp
             </Button>
             <Button variant="outline" size="sm" onClick={clearSelection} disabled={selectedIds.size === 0}>
               <X className="h-4 w-4 mr-1" />
-              Limpar Página
+              Limpar Seleção
             </Button>
             <Button variant="destructive" size="sm" onClick={clearAll}>
               <Trash2 className="h-4 w-4 mr-1" />
@@ -352,38 +401,111 @@ const SearchPage = () => {
 
             <div className="flex-1" />
 
-            <span className="text-sm text-muted-foreground">
-              {selectedIds.size} selecionados (total)
+            <span className="text-sm font-medium">
+              {selectedIds.size} selecionados
             </span>
           </div>
 
-          {/* Ações com selecionados */}
-          {selectedIds.size > 0 && (
-            <div className="flex gap-2">
-              <Button size="sm" onClick={saveSelected}>
-                <Save className="h-4 w-4 mr-1" />
-                Salvar Selecionados
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-1" />
-                    Exportar
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => exportSelected('csv')}>
-                    <FileSpreadsheet className="h-4 w-4 mr-2" />
-                    CSV
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => exportSelected('json')}>
-                    <FileJson className="h-4 w-4 mr-2" />
-                    JSON Completo
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
+          <Separator />
+
+          {/* Ações de Salvar e Exportar */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Salvar */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm">
+                  <Save className="h-4 w-4 mr-1" />
+                  Salvar
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={() => saveLeads(leads)}>
+                  <CheckSquare className="h-4 w-4 mr-2" />
+                  Salvar Tudo ({leads.length})
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => saveLeads(leads.filter(l => selectedIds.has(l.id)))}
+                  disabled={selectedIds.size === 0}
+                >
+                  <CheckSquare className="h-4 w-4 mr-2" />
+                  Salvar Selecionados ({selectedIds.size})
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => saveLeads(leadsWithWhatsApp)}>
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Salvar com WhatsApp ({leadsWithWhatsApp.length})
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => saveLeads(leadsWithoutWhatsApp)}>
+                  <PhoneOff className="h-4 w-4 mr-2" />
+                  Salvar sem WhatsApp ({leadsWithoutWhatsApp.length})
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Exportar CSV */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <FileSpreadsheet className="h-4 w-4 mr-1" />
+                  CSV
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={() => exportLeads(leads, 'csv')}>
+                  <CheckSquare className="h-4 w-4 mr-2" />
+                  Exportar Tudo ({leads.length})
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => exportLeads(leads.filter(l => selectedIds.has(l.id)), 'csv')}
+                  disabled={selectedIds.size === 0}
+                >
+                  <CheckSquare className="h-4 w-4 mr-2" />
+                  Exportar Selecionados ({selectedIds.size})
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => exportLeads(leadsWithWhatsApp, 'csv')}>
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Com WhatsApp ({leadsWithWhatsApp.length})
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportLeads(leadsWithoutWhatsApp, 'csv')}>
+                  <PhoneOff className="h-4 w-4 mr-2" />
+                  Sem WhatsApp ({leadsWithoutWhatsApp.length})
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Exportar JSON */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <FileJson className="h-4 w-4 mr-1" />
+                  JSON
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={() => exportLeads(leads, 'json')}>
+                  <CheckSquare className="h-4 w-4 mr-2" />
+                  Exportar Tudo ({leads.length})
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => exportLeads(leads.filter(l => selectedIds.has(l.id)), 'json')}
+                  disabled={selectedIds.size === 0}
+                >
+                  <CheckSquare className="h-4 w-4 mr-2" />
+                  Exportar Selecionados ({selectedIds.size})
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => exportLeads(leadsWithWhatsApp, 'json')}>
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Com WhatsApp ({leadsWithWhatsApp.length})
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportLeads(leadsWithoutWhatsApp, 'json')}>
+                  <PhoneOff className="h-4 w-4 mr-2" />
+                  Sem WhatsApp ({leadsWithoutWhatsApp.length})
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
           {/* Lista de resultados */}
           <div className="space-y-2">
