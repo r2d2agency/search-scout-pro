@@ -66,64 +66,96 @@ router.post('/search', authenticate, async (req, res) => {
     
     if (!apiKey) {
       return res.status(503).json({ 
-        message: 'Nenhuma chave Firecrawl disponível. Configure uma chave no painel de administração ou nas configurações do usuário.' 
+        message: 'Nenhuma chave Firecrawl disponível. Configure uma chave no painel de administração.' 
       });
     }
 
-    console.log(`Usando chave Firecrawl de: ${keySource}`);
+    console.log(`[Firecrawl] Usando chave de: ${keySource}`);
 
     const cleanQuery = query.replace('@', '').replace('#', '').trim();
-    console.log('Iniciando busca Instagram via Firecrawl:', { query: cleanQuery, limit });
+    console.log('[Firecrawl] Iniciando busca Instagram:', { query: cleanQuery, limit });
 
-    // Estratégia: buscar no Google por perfis do Instagram relacionados ao termo
-    const searchQuery = `site:instagram.com "${cleanQuery}" -/p/ -/reel/`;
-    
-    const searchResponse = await fetch('https://api.firecrawl.dev/v1/search', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: searchQuery,
-        limit: Math.min(limit, 20),
-        scrapeOptions: {
-          formats: ['markdown', 'html'],
-        },
-      }),
-    });
+    // ESTRATÉGIA 1: Buscar diretamente perfis do Instagram via Google
+    // Usar query mais específica para perfis comerciais
+    const searchQueries = [
+      `"${cleanQuery}" site:instagram.com`,
+      `${cleanQuery} instagram perfil`,
+    ];
 
-    if (!searchResponse.ok) {
-      const errorText = await searchResponse.text();
-      console.error('Erro Firecrawl Search:', searchResponse.status, errorText);
-      return res.status(502).json({ 
-        message: 'Erro ao consultar Firecrawl API',
-        details: errorText,
-        status: searchResponse.status 
-      });
+    let allResults = [];
+
+    for (const searchQuery of searchQueries) {
+      try {
+        console.log(`[Firecrawl] Tentando query: ${searchQuery}`);
+        
+        const searchResponse = await fetch('https://api.firecrawl.dev/v1/search', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query: searchQuery,
+            limit: Math.min(limit, 10),
+          }),
+        });
+
+        if (searchResponse.ok) {
+          const searchData = await searchResponse.json();
+          console.log(`[Firecrawl] Resultados para "${searchQuery}":`, searchData.data?.length || 0);
+          
+          if (searchData.data && searchData.data.length > 0) {
+            allResults = [...allResults, ...searchData.data];
+          }
+        } else {
+          const errorText = await searchResponse.text();
+          console.error(`[Firecrawl] Erro na busca:`, searchResponse.status, errorText);
+        }
+      } catch (err) {
+        console.error(`[Firecrawl] Erro na query "${searchQuery}":`, err.message);
+      }
+
+      // Se já temos resultados suficientes, parar
+      if (allResults.length >= limit) break;
     }
 
-    const searchResults = await searchResponse.json();
-    console.log('Resultados Firecrawl Search:', searchResults.data?.length || 0);
+    console.log(`[Firecrawl] Total de resultados brutos: ${allResults.length}`);
 
     // Processar resultados para formato de leads
     const leads = [];
     const processedUsernames = new Set();
 
-    for (const result of (searchResults.data || [])) {
+    for (const result of allResults) {
+      // Tentar extrair username de URLs do Instagram
       const username = extractUsernameFromUrl(result.url);
-      if (!username || processedUsernames.has(username)) continue;
-      processedUsernames.add(username);
+      
+      if (username && !processedUsernames.has(username)) {
+        processedUsernames.add(username);
+        
+        // Criar lead básico a partir dos dados da busca
+        const lead = createLeadFromSearchResult(result, username, cleanQuery, leads.length);
+        leads.push(lead);
+        
+        console.log(`[Firecrawl] Lead encontrado: @${username}`);
+      }
 
-      // Scrape do perfil individual para mais detalhes
-      const profileData = await scrapeInstagramProfile(apiKey, username);
-      if (profileData) {
-        leads.push(createLeadFromProfile(profileData, query, leads.length));
+      if (leads.length >= limit) break;
+    }
+
+    // Se não encontramos nada via busca, tentar scrape direto do perfil
+    if (leads.length === 0 && cleanQuery.length > 2) {
+      console.log(`[Firecrawl] Tentando scrape direto do perfil: @${cleanQuery}`);
+      
+      const profileData = await scrapeInstagramProfile(apiKey, cleanQuery);
+      if (profileData && profileData.username) {
+        leads.push(createLeadFromProfile(profileData, query, 0));
       }
     }
 
     // Incrementar uso
     await incrementUsage(req.user.id, 'search', 1);
+
+    console.log(`[Firecrawl] Leads finais: ${leads.length}`);
 
     res.json({
       leads,
@@ -136,12 +168,13 @@ router.post('/search', authenticate, async (req, res) => {
         source: 'Instagram via Firecrawl',
         query,
         totalResults: leads.length,
+        keySource,
       }
     });
 
   } catch (error) {
-    console.error('Erro na pesquisa Instagram Firecrawl:', error);
-    res.status(500).json({ message: 'Erro ao realizar pesquisa no Instagram' });
+    console.error('[Firecrawl] Erro na pesquisa:', error);
+    res.status(500).json({ message: 'Erro ao realizar pesquisa no Instagram', details: error.message });
   }
 });
 
@@ -158,15 +191,11 @@ router.post('/profile', authenticate, async (req, res) => {
     const { key: apiKey, source: keySource } = await firecrawlKeysRouter.getNextAvailableKey();
     
     if (!apiKey) {
-      return res.status(503).json({ 
-        message: 'Nenhuma chave Firecrawl disponível.' 
-      });
+      return res.status(503).json({ message: 'Nenhuma chave Firecrawl disponível.' });
     }
 
-    console.log(`Perfil: Usando chave Firecrawl de: ${keySource}`);
-
     const cleanUsername = username.replace('@', '').trim();
-    console.log('Buscando perfil Instagram via Firecrawl:', cleanUsername);
+    console.log('[Firecrawl] Buscando perfil:', cleanUsername);
 
     const profileData = await scrapeInstagramProfile(apiKey, cleanUsername);
     
@@ -177,15 +206,69 @@ router.post('/profile', authenticate, async (req, res) => {
     res.json(profileData);
 
   } catch (error) {
-    console.error('Erro ao buscar perfil:', error);
+    console.error('[Firecrawl] Erro ao buscar perfil:', error);
     res.status(500).json({ message: 'Erro ao buscar perfil' });
   }
 });
+
+// Criar lead a partir do resultado da busca (sem scrape adicional)
+function createLeadFromSearchResult(result, username, searchTerm, position) {
+  const title = result.title || '';
+  const description = result.description || '';
+  const url = result.url || '';
+
+  // Tentar extrair nome do título (formato: "Nome (@username)")
+  let fullName = username;
+  const titleMatch = title.match(/^(.+?)\s*[\(\|@-]/);
+  if (titleMatch) {
+    fullName = titleMatch[1].trim();
+  }
+
+  // Extrair dados de contato do description
+  const contactData = extractAllFromText(`${title} ${description} ${url}`);
+
+  return {
+    id: `ig-fc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    company: fullName || username,
+    website: contactData.website,
+    phone: contactData.phone,
+    whatsapp: contactData.whatsapp,
+    email: contactData.email,
+    whatsappValid: contactData.whatsappFromLink ? true : null,
+    source: 'Instagram',
+    searchTerm,
+    createdAt: new Date().toISOString(),
+    address: null,
+    rating: null,
+    ratingCount: null,
+    category: null,
+    serpData: {
+      type: 'instagram',
+      position,
+      username: username,
+      fullName: fullName,
+      biography: description,
+      followersCount: null,
+      followingCount: null,
+      postsCount: null,
+      isVerified: false,
+      isBusinessAccount: false,
+      businessCategory: null,
+      profilePicUrl: null,
+      externalUrl: contactData.website,
+      profileUrl: `https://instagram.com/${username}`,
+      whatsappFromLink: contactData.whatsappFromLink,
+      sourceUrl: url,
+    }
+  };
+}
 
 // Scrape de perfil individual do Instagram
 async function scrapeInstagramProfile(apiKey, username) {
   try {
     const profileUrl = `https://www.instagram.com/${username}/`;
+    
+    console.log(`[Firecrawl] Scraping perfil: ${profileUrl}`);
     
     const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
@@ -195,38 +278,39 @@ async function scrapeInstagramProfile(apiKey, username) {
       },
       body: JSON.stringify({
         url: profileUrl,
-        formats: ['markdown', 'html', 'links'],
-        waitFor: 3000,
+        formats: ['markdown', 'links'],
+        waitFor: 2000,
       }),
     });
 
     if (!scrapeResponse.ok) {
-      console.error('Erro ao fazer scrape do perfil:', scrapeResponse.status);
+      const errorText = await scrapeResponse.text();
+      console.error('[Firecrawl] Erro scrape:', scrapeResponse.status, errorText);
       return null;
     }
 
     const scrapeData = await scrapeResponse.json();
     const data = scrapeData.data || scrapeData;
     
-    // Extrair informações do HTML/Markdown
-    const html = data.html || '';
+    console.log('[Firecrawl] Scrape sucesso, processando dados...');
+    
     const markdown = data.markdown || '';
     const links = data.links || [];
     const metadata = data.metadata || {};
 
     // Parse dos dados do perfil
-    const profileInfo = parseInstagramProfile(html, markdown, metadata, links, username);
+    const profileInfo = parseInstagramProfile(markdown, metadata, links, username);
     
     return profileInfo;
 
   } catch (error) {
-    console.error('Erro no scrape do perfil:', error);
+    console.error('[Firecrawl] Erro no scrape do perfil:', error.message);
     return null;
   }
 }
 
 // Parse das informações do perfil do Instagram
-function parseInstagramProfile(html, markdown, metadata, links, username) {
+function parseInstagramProfile(markdown, metadata, links, username) {
   const profile = {
     username: username,
     fullName: null,
@@ -247,7 +331,7 @@ function parseInstagramProfile(html, markdown, metadata, links, username) {
 
   // Extrair do título da página
   if (metadata.title) {
-    const titleMatch = metadata.title.match(/^(.+?)\s*\(@?(\w+)\)/);
+    const titleMatch = metadata.title.match(/^(.+?)\s*[\(\|@]/);
     if (titleMatch) {
       profile.fullName = titleMatch[1].trim();
     }
@@ -258,34 +342,46 @@ function parseInstagramProfile(html, markdown, metadata, links, username) {
     profile.biography = metadata.description;
   }
 
-  // Extrair números do markdown/html
-  const followersMatch = markdown.match(/(\d+(?:[.,]\d+)?[KMkm]?)\s*(?:Followers|Seguidores)/i);
+  // Extrair números do markdown
+  const followersMatch = markdown.match(/(\d+(?:[.,]\d+)?[KMkm]?)\s*(?:Followers|Seguidores|followers)/i);
   if (followersMatch) {
     profile.followersCount = parseCount(followersMatch[1]);
   }
 
-  const followingMatch = markdown.match(/(\d+(?:[.,]\d+)?[KMkm]?)\s*(?:Following|Seguindo)/i);
+  const followingMatch = markdown.match(/(\d+(?:[.,]\d+)?[KMkm]?)\s*(?:Following|Seguindo|following)/i);
   if (followingMatch) {
     profile.followingCount = parseCount(followingMatch[1]);
   }
 
-  const postsMatch = markdown.match(/(\d+(?:[.,]\d+)?[KMkm]?)\s*(?:Posts|Publicações)/i);
+  const postsMatch = markdown.match(/(\d+(?:[.,]\d+)?[KMkm]?)\s*(?:Posts|Publicações|posts)/i);
   if (postsMatch) {
     profile.postsCount = parseCount(postsMatch[1]);
   }
 
   // Verificar se é verificado
-  profile.isVerified = html.includes('Verified') || html.includes('verificado') || markdown.includes('✓');
+  profile.isVerified = markdown.includes('Verified') || markdown.includes('verificado') || markdown.includes('✓');
 
   // Extrair dados de contato da bio e links
-  const allText = `${profile.biography || ''} ${links.join(' ')}`;
+  const linksText = links.join(' ');
+  const allText = `${profile.biography || ''} ${linksText}`;
   const extractedData = extractAllFromText(allText);
 
   profile.email = extractedData.email;
   profile.phone = extractedData.phone;
   profile.whatsapp = extractedData.whatsapp;
   profile.whatsappFromLink = extractedData.whatsappFromLink;
-  profile.externalUrl = extractedData.website || links.find(l => !l.includes('instagram.com'));
+  
+  // Encontrar URL externa (não Instagram, não WhatsApp)
+  for (const link of links) {
+    if (!link.includes('instagram.com') && 
+        !link.includes('wa.me') && 
+        !link.includes('whatsapp.com') &&
+        !link.includes('facebook.com') &&
+        link.startsWith('http')) {
+      profile.externalUrl = link;
+      break;
+    }
+  }
 
   return profile;
 }
@@ -307,10 +403,25 @@ function parseCount(str) {
 // Extrair username da URL do Instagram
 function extractUsernameFromUrl(url) {
   if (!url) return null;
-  const match = url.match(/instagram\.com\/([^/?#]+)/);
-  if (match && !['p', 'reel', 'reels', 'stories', 'explore', 'accounts'].includes(match[1])) {
-    return match[1];
+  
+  // Padrões de URL do Instagram
+  const patterns = [
+    /instagram\.com\/([a-zA-Z0-9._]+)\/?(?:\?|$|#)/,
+    /instagram\.com\/([a-zA-Z0-9._]+)/,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) {
+      const username = match[1].toLowerCase();
+      // Filtrar páginas que não são perfis
+      const excluded = ['p', 'reel', 'reels', 'stories', 'explore', 'accounts', 'direct', 'about', 'legal', 'privacy', 'terms', 'help'];
+      if (!excluded.includes(username)) {
+        return username;
+      }
+    }
   }
+  
   return null;
 }
 
@@ -326,15 +437,28 @@ function extractAllFromText(text) {
 
   if (!text) return result;
 
-  // Extrair WhatsApp de links
-  const whatsappLinkRegex = /(?:wa\.me|api\.whatsapp\.com\/send\?phone=|whatsapp\.com\/send\?phone=|whats\.link\/|whatsa\.me\/|zap\.link\/)[\/?]?(\d{10,15})/gi;
-  let waMatch;
-  while ((waMatch = whatsappLinkRegex.exec(text)) !== null) {
-    const number = waMatch[1]?.replace(/\D/g, '');
-    if (number && number.length >= 10) {
-      result.whatsapp = number;
-      result.whatsappFromLink = true;
+  // Extrair WhatsApp de links (vários formatos)
+  const whatsappPatterns = [
+    /wa\.me\/(\d{10,15})/gi,
+    /api\.whatsapp\.com\/send\?phone=(\d{10,15})/gi,
+    /whatsapp\.com\/send\?phone=(\d{10,15})/gi,
+    /whats\.link\/(\d{10,15})/gi,
+    /whatsa\.me\/(\d{10,15})/gi,
+    /zap\.link\/(\d{10,15})/gi,
+    /wa\.link\/(\d{10,15})/gi,
+  ];
+  
+  for (const pattern of whatsappPatterns) {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      const number = match[1]?.replace(/\D/g, '');
+      if (number && number.length >= 10) {
+        result.whatsapp = number;
+        result.whatsappFromLink = true;
+        break;
+      }
     }
+    if (result.whatsapp) break;
   }
 
   // Extrair emails
@@ -342,7 +466,7 @@ function extractAllFromText(text) {
   const emails = text.match(emailRegex) || [];
   result.email = emails[0] || null;
 
-  // Extrair telefones
+  // Extrair telefones brasileiros
   const phoneRegex = /(?:\+?55\s?)?(?:\(?0?\d{2}\)?[\s.-]?)?\d{4,5}[\s.-]?\d{4}/g;
   const phones = text.match(phoneRegex) || [];
   if (phones.length > 0) {
@@ -355,11 +479,14 @@ function extractAllFromText(text) {
   }
 
   // Extrair website
-  const urlRegex = /https?:\/\/[^\s<>"')}\]]+/gi;
+  const urlRegex = /https?:\/\/[^\s<>"')}\],]+/gi;
   const urls = text.match(urlRegex) || [];
   for (const url of urls) {
-    if (!url.includes('instagram.com') && !url.includes('wa.me') && !url.includes('whatsapp.com')) {
-      result.website = url;
+    if (!url.includes('instagram.com') && 
+        !url.includes('wa.me') && 
+        !url.includes('whatsapp.com') &&
+        !url.includes('facebook.com')) {
+      result.website = url.replace(/[.,]+$/, ''); // Remove pontuação final
       break;
     }
   }
