@@ -1,6 +1,6 @@
 // Cliente HTTP para comunicação com o backend
-// Preferimos usar mesma origem em produção (evita CORS) e proxy no Nginx/Vite.
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+// Sempre usamos mesma origem ("/api") para evitar CORS; em produção o Nginx faz proxy para o backend.
+const API_BASE_URL = '/api';
 // Token storage
 let authToken: string | null = localStorage.getItem('auth_token');
 
