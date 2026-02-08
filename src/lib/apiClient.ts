@@ -367,6 +367,51 @@ export const instagramApi = {
   },
 };
 
+// API Instagram via Firecrawl (alternativa mais rápida)
+export const instagramFirecrawlApi = {
+  async search(query: string, limit = 20) {
+    return apiRequest<{
+      leads: any[];
+      pagination: {
+        currentPage: number;
+        totalResults: number;
+        hasMore: boolean;
+      };
+      searchMetadata: {
+        source: string;
+        query: string;
+        totalResults: number;
+      };
+    }>('/instagram-firecrawl/search', {
+      method: 'POST',
+      body: JSON.stringify({ query, limit }),
+    });
+  },
+
+  async getProfile(username: string) {
+    return apiRequest<{
+      username: string;
+      fullName: string;
+      biography: string;
+      externalUrl: string;
+      followersCount: number;
+      followingCount: number;
+      postsCount: number;
+      isVerified: boolean;
+      isBusinessAccount: boolean;
+      businessCategory: string;
+      profilePicUrl: string;
+      email: string | null;
+      phone: string | null;
+      whatsapp: string | null;
+      whatsappFromLink: boolean;
+    }>('/instagram-firecrawl/profile', {
+      method: 'POST',
+      body: JSON.stringify({ username }),
+    });
+  },
+};
+
 // API Saved Searches (pesquisas salvas)
 export const savedSearchesApi = {
   async list() {

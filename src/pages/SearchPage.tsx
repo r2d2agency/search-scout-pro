@@ -54,7 +54,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from '@/hooks/use-toast';
-import { searchApi, leadsApi, savedSearchesApi, instagramApi } from '@/lib/apiClient';
+import { searchApi, leadsApi, savedSearchesApi, instagramFirecrawlApi } from '@/lib/apiClient';
 import { exportToXLSX, exportToCSV, exportToJSON } from '@/lib/api';
 import { Lead } from '@/types/lead';
 import {
@@ -120,8 +120,8 @@ const SearchPage = () => {
       let response;
       
       if (searchSource === 'instagram') {
-        // Busca no Instagram via Apify
-        response = await instagramApi.search(query, 20);
+        // Busca no Instagram via Firecrawl (mais rápido que Apify)
+        response = await instagramFirecrawlApi.search(query, 20);
       } else {
         // Busca no Google (padrão)
         response = await searchApi.search(query, page);
