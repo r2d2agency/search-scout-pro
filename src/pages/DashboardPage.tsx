@@ -27,6 +27,8 @@ import { DateRange } from 'react-day-picker';
 import DashboardFilters from '@/components/DashboardFilters';
 import StatsCards from '@/components/dashboard/StatsCards';
 import SearchTermsChart from '@/components/dashboard/SearchTermsChart';
+import SuperAdminStats from '@/components/SuperAdminStats';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Dados zerados - substituir por dados reais do backend
 const weeklySearches: { day: string; searches: number; leads: number }[] = [];
@@ -66,6 +68,7 @@ const chartConfig = {
 };
 
 const DashboardPage = () => {
+  const { user } = useAuth();
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [period, setPeriod] = useState<string>('all');
 
@@ -75,6 +78,8 @@ const DashboardPage = () => {
     validWhatsApp: 0,
     conversionRate: 0,
   }), []);
+
+  const isSuperAdmin = user?.role === 'superadmin';
 
   return (
     <div className="space-y-6">
@@ -92,6 +97,9 @@ const DashboardPage = () => {
           onPeriodChange={setPeriod}
         />
       </div>
+
+      {/* Super Admin Stats */}
+      {isSuperAdmin && <SuperAdminStats />}
 
       {/* Stats Overview */}
       <StatsCards stats={stats} />

@@ -259,4 +259,99 @@ router.get('/:id/usage', authenticate, async (req, res) => {
   }
 });
 
+// Obter estatísticas globais (superadmin only)
+router.get('/stats/global', authenticate, requireSuperAdmin, async (req, res) => {
+  try {
+    const month = new Date().toISOString().slice(0, 7);
+
+    // Total de usuários por role
+    const usersResult = await db.query(`
+      SELECT role, COUNT(*) as count
+      FROM users
+      GROUP BY role
+    `);
+
+    // Uso agregado do mês
+    const usageResult = await db.query(`
+      SELECT 
+        COALESCE(SUM(searches_used), 0) as total_searches,
+        COALESCE(SUM(leads_extracted), 0) as total_leads,
+        COALESCE(SUM(whatsapp_verified), 0) as total_whatsapp
+      FROM user_usage
+      WHERE month = $1
+    `, [month]);
+
+    // Top usuários por uso
+    const topUsersResult = await db.query(`
+      SELECT u.id, u.name, u.email, u.plan_id, p.name as plan_name,
+             COALESCE(uu.searches_used, 0) as searches_used,
+             COALESCE(uu.leads_extracted, 0) as leads_extracted,
+             COALESCE(uu.whatsapp_verified, 0) as whatsapp_verified,
+             p.monthly_searches, p.monthly_leads, p.whatsapp_verifications
+      FROM users u
+      LEFT JOIN user_usage uu ON u.id = uu.user_id AND uu.month = $1
+      LEFT JOIN plans p ON u.plan_id = p.id
+      ORDER BY uu.searches_used DESC NULLS LAST
+      LIMIT 20
+    `, [month]);
+
+    // Status das chaves SERP
+    const serpKeysResult = await db.query(`
+      SELECT 
+        COUNT(*) as total_keys,
+        COUNT(*) FILTER (WHERE is_active = true) as active_keys,
+        COALESCE(SUM(usage_count), 0) as total_usage,
+        COALESCE(SUM(monthly_limit), 0) as total_limit
+      FROM serp_api_keys
+    `);
+
+    const usersByRole: Record<string, number> = {};
+    usersResult.rows.forEach((row: any) => {
+      usersByRole[row.role] = parseInt(row.count);
+    });
+
+    const usage = usageResult.rows[0];
+    const serpKeys = serpKeysResult.rows[0];
+
+    res.json({
+      month,
+      users: {
+        total: Object.values(usersByRole).reduce((a: number, b: number) => a + b, 0),
+        byRole: usersByRole
+      },
+      usage: {
+        totalSearches: parseInt(usage.total_searches),
+        totalLeads: parseInt(usage.total_leads),
+        totalWhatsapp: parseInt(usage.total_whatsapp)
+      },
+      serpKeys: {
+        total: parseInt(serpKeys.total_keys),
+        active: parseInt(serpKeys.active_keys),
+        usage: parseInt(serpKeys.total_usage),
+        limit: parseInt(serpKeys.total_limit)
+      },
+      topUsers: topUsersResult.rows.map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        planId: row.plan_id,
+        planName: row.plan_name,
+        usage: {
+          searches: row.searches_used,
+          leads: row.leads_extracted,
+          whatsapp: row.whatsapp_verified
+        },
+        limits: {
+          searches: row.monthly_searches,
+          leads: row.monthly_leads,
+          whatsapp: row.whatsapp_verifications
+        }
+      }))
+    });
+  } catch (error) {
+    console.error('Erro ao buscar estatísticas globais:', error);
+    res.status(500).json({ message: 'Erro ao buscar estatísticas' });
+  }
+});
+
 module.exports = router;
