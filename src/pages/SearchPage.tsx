@@ -87,7 +87,7 @@ const SearchPage = () => {
   const [searchName, setSearchName] = useState('');
   const [savingSearch, setSavingSearch] = useState(false);
 
-  const handleSearch = useCallback(async (page: number = 1) => {
+  const handleSearch = useCallback(async (page: number = 1, accumulate: boolean = false) => {
     if (!query.trim()) return;
     
     if (isAuthenticated) {
@@ -107,20 +107,35 @@ const SearchPage = () => {
     try {
       const response = await searchApi.search(query, page);
       
-      setLeads(response.leads);
+      // Se accumulate = true, adiciona aos leads existentes
+      if (accumulate && page > 1) {
+        setLeads(prev => [...prev, ...response.leads]);
+      } else {
+        setLeads(response.leads);
+      }
+      
       setCurrentPage(page);
-      setTotalResults(response.pagination.totalResults);
+      setTotalResults(prev => accumulate ? prev + response.leads.length : response.pagination.totalResults);
       setHasMore(response.pagination.hasMore);
-      setSelectedIds(new Set());
+      
+      // Não limpar seleção ao acumular
+      if (!accumulate) {
+        setSelectedIds(new Set());
+      }
       
       if (isAuthenticated) {
         setTimeout(() => refetchUsage(), 1000);
       }
 
-      if (response.leads.length === 0) {
+      if (response.leads.length === 0 && page === 1) {
         toast({
           title: 'Nenhum resultado',
           description: 'Tente outro termo de pesquisa',
+        });
+      } else if (accumulate && response.leads.length > 0) {
+        toast({
+          title: `+${response.leads.length} leads carregados`,
+          description: `Total: ${leads.length + response.leads.length} leads`,
         });
       }
     } catch (error) {
@@ -133,16 +148,22 @@ const SearchPage = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [query, isAuthenticated, checkLimit, refetchUsage]);
+  }, [query, isAuthenticated, checkLimit, refetchUsage, leads.length]);
 
-  const handlePageChange = (page: number) => {
-    if (page < 1 || isLoading) return;
-    handleSearch(page);
+  // Carregar mais resultados (acumula)
+  const handleLoadMore = () => {
+    if (isLoading || !hasMore) return;
+    handleSearch(currentPage + 1, true);
+  };
+
+  // Nova pesquisa (reinicia)
+  const handleNewSearch = () => {
+    handleSearch(1, false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      handleSearch(1);
+      handleNewSearch();
     }
   };
 
@@ -360,7 +381,7 @@ const SearchPage = () => {
           />
         </div>
         <Button 
-          onClick={() => handleSearch(1)} 
+          onClick={handleNewSearch} 
           disabled={isLoading || !query.trim()}
           className="h-12 px-6"
         >
@@ -445,35 +466,33 @@ const SearchPage = () => {
 
       {leads.length > 0 && (
         <>
-          {/* Paginação superior */}
+          {/* Controle de resultados */}
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1 || isLoading}
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Anterior
-              </Button>
               <Badge variant="secondary" className="px-3 py-1">
+                {leads.length} leads carregados
+              </Badge>
+              <Badge variant="outline" className="px-3 py-1">
                 Página {currentPage}
               </Badge>
               <Button
-                variant="outline"
+                variant="default"
                 size="sm"
-                onClick={() => handlePageChange(currentPage + 1)}
+                onClick={handleLoadMore}
                 disabled={!hasMore || isLoading}
               >
-                Próxima
-                <ChevronRight className="h-4 w-4 ml-1" />
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 mr-1" />
+                )}
+                Carregar +20
               </Button>
             </div>
             
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Info className="h-4 w-4" />
-              Mostrando {startIndex}-{endIndex} de {totalResults}+ resultados
+              {hasMore ? 'Clique em "Carregar +20" para mais resultados' : 'Todos os resultados carregados'}
             </div>
           </div>
 
@@ -808,28 +827,25 @@ const SearchPage = () => {
             })}
           </div>
 
-          {/* Paginação inferior */}
-          <div className="flex items-center justify-center gap-2 pt-4">
-            <Button
-              variant="outline"
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1 || isLoading}
-            >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Anterior
-            </Button>
-            <Badge variant="secondary" className="px-4 py-2">
-              Página {currentPage}
-            </Badge>
-            <Button
-              variant="outline"
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={!hasMore || isLoading}
-            >
-              Próxima
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          </div>
+          {/* Carregar mais no final */}
+          {hasMore && (
+            <div className="flex items-center justify-center gap-2 pt-4">
+              <Button
+                variant="default"
+                size="lg"
+                onClick={handleLoadMore}
+                disabled={isLoading}
+                className="px-8"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                ) : (
+                  <ChevronRight className="h-5 w-5 mr-2" />
+                )}
+                Carregar mais 20 resultados
+              </Button>
+            </div>
+          )}
         </>
       )}
 
