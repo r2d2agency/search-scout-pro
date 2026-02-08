@@ -45,6 +45,66 @@ async function incrementUsage(userId, type, count = 1) {
   );
 }
 
+// Buscar sugestões de usernames (autocomplete)
+router.post('/suggestions', authenticate, async (req, res) => {
+  try {
+    const { query } = req.body;
+    
+    if (!query || query.trim().length < 2) {
+      return res.json({ suggestions: [] });
+    }
+
+    const apiKey = process.env.APIFY_API_KEY;
+    if (!apiKey) {
+      return res.json({ suggestions: [] });
+    }
+
+    const cleanQuery = query.replace('@', '').replace('#', '').trim();
+    console.log('Buscando sugestões para:', cleanQuery);
+
+    // Usar o actor Instagram Search para buscar perfis similares
+    const runResponse = await fetch(
+      `https://api.apify.com/v2/acts/apify~instagram-scraper/run-sync-get-dataset-items?token=${apiKey}&timeout=30`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          search: cleanQuery,
+          searchType: 'user',
+          searchLimit: 10,
+          resultsType: 'details',
+          resultsLimit: 10,
+        }),
+      }
+    );
+
+    if (!runResponse.ok) {
+      console.error('Erro ao buscar sugestões:', runResponse.status);
+      return res.json({ suggestions: [] });
+    }
+
+    const results = await runResponse.json();
+    
+    // Mapear para sugestões simplificadas
+    const suggestions = results.map(item => ({
+      username: item.username,
+      fullName: item.fullName || item.username,
+      profilePicUrl: item.profilePicUrl,
+      followersCount: item.followersCount,
+      isVerified: item.verified || false,
+      isBusinessAccount: item.isBusinessAccount || false,
+    })).slice(0, 8);
+
+    res.json({ suggestions });
+
+  } catch (error) {
+    console.error('Erro ao buscar sugestões:', error);
+    res.json({ suggestions: [] });
+  }
+});
+
 // Buscar perfis do Instagram via Apify
 router.post('/search', authenticate, async (req, res) => {
   try {
@@ -69,22 +129,8 @@ router.post('/search', authenticate, async (req, res) => {
 
     console.log('Iniciando busca Instagram via Apify:', { query, limit });
 
-    // Usar o actor Instagram Profile Scraper da Apify
-    // Actor: apify/instagram-profile-scraper
-    const actorInput = {
-      usernames: [], // Não usado quando searchType é hashtag
-      hashtags: [query.replace('#', '')],
-      searchType: 'hashtag',
-      resultsLimit: Math.min(limit, 50),
-      addParentData: false,
-    };
-
-    // Se a query parece ser um username (sem #), buscar diretamente
-    if (!query.startsWith('#') && !query.includes(' ')) {
-      actorInput.usernames = [query.replace('@', '')];
-      actorInput.hashtags = [];
-      actorInput.searchType = 'user';
-    }
+    const cleanQuery = query.replace('@', '').replace('#', '').trim();
+    const isHashtag = query.startsWith('#');
 
     // Executar o actor de forma síncrona (aguarda resultado)
     const runResponse = await fetch(
@@ -94,14 +140,18 @@ router.post('/search', authenticate, async (req, res) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          directUrls: actorInput.searchType === 'user' 
-            ? [`https://www.instagram.com/${actorInput.usernames[0]}/`]
-            : [`https://www.instagram.com/explore/tags/${actorInput.hashtags[0]}/`],
+        body: JSON.stringify(isHashtag ? {
+          // Busca por hashtag
+          directUrls: [`https://www.instagram.com/explore/tags/${cleanQuery}/`],
           resultsType: 'details',
           resultsLimit: limit,
-          searchType: actorInput.searchType,
+        } : {
+          // Busca por termo - retorna múltiplos perfis
+          search: cleanQuery,
+          searchType: 'user',
           searchLimit: limit,
+          resultsType: 'details',
+          resultsLimit: limit,
         }),
       }
     );
