@@ -13,7 +13,7 @@ import { Loader2, ChevronDown } from 'lucide-react';
 
 const SearchPage = () => {
   const { isAuthenticated } = useAuth();
-  const { checkLimit, incrementSearch, incrementLeads, incrementWhatsApp } = useUsage();
+  const { checkLimit, refetch: refetchUsage } = useUsage();
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
   const [currentQuery, setCurrentQuery] = useState('');
   const [verifyingId, setVerifyingId] = useState<string>();
@@ -30,16 +30,18 @@ const SearchPage = () => {
     clearLeads,
   } = useLeads();
 
-  const handleSearch = useCallback((query: string) => {
-    if (isAuthenticated && !checkLimit('search')) {
-      return;
+  const handleSearch = useCallback(async (query: string) => {
+    if (isAuthenticated) {
+      const canSearch = await checkLimit('search');
+      if (!canSearch) return;
     }
     setCurrentQuery(query);
     search(query);
+    // Atualizar uso após a pesquisa
     if (isAuthenticated) {
-      incrementSearch();
+      setTimeout(() => refetchUsage(), 1000);
     }
-  }, [search, isAuthenticated, checkLimit, incrementSearch]);
+  }, [search, isAuthenticated, checkLimit, refetchUsage]);
 
   const handleVerifyWhatsApp = useCallback(async (leadId: string, phone: string) => {
     setVerifyingId(leadId);
