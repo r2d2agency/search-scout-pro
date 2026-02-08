@@ -28,14 +28,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Users, MoreHorizontal, Shield, ShieldOff, RefreshCw, Trash2 } from 'lucide-react';
+import { Users, MoreHorizontal, Shield, ShieldOff, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const UsersPage = () => {
   const { user: currentUser } = useAuth();
-  const { users, changePlan, toggleRole, resetUserUsage, deleteUser, getUserUsage } = useUsers();
+  const { users, updateUser, deleteUser } = useUsers();
   const { plans } = usePlans();
+  const [userUsage, setUserUsage] = useState<Record<string, any>>({});
 
   const formatDate = (dateString: string) => {
     return format(new Date(dateString), "dd/MM/yyyy", { locale: ptBR });
@@ -48,6 +49,21 @@ const UsersPage = () => {
 
   const getPlanLimits = (planId: string) => {
     return plans.find(p => p.id === planId);
+  };
+
+  const changePlan = (userId: string, planId: string) => {
+    updateUser(userId, { planId });
+  };
+
+  const toggleRole = (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (user) {
+      updateUser(userId, { role: user.role === 'admin' ? 'user' : 'admin' });
+    }
+  };
+
+  const getUserUsage = (userId: string) => {
+    return userUsage[userId] || null;
   };
 
   if (currentUser?.role !== 'admin') {
@@ -174,10 +190,6 @@ const UsersPage = () => {
                                 Tornar Admin
                               </>
                             )}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => resetUserUsage(user.id)}>
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            Resetar Uso
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem 
