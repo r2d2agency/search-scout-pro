@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBrand } from '@/hooks/useBrand';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Loader2, LogIn, Sparkles } from 'lucide-react';
+import { Loader2, LogIn } from 'lucide-react';
+import defaultLogo from '@/assets/logo.png';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -29,22 +30,13 @@ const LoginPage = () => {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-4">
-          {brand.logoUrl ? (
-            <div className="w-full flex justify-center">
-              <img 
-                src={brand.logoUrl} 
-                alt="Logo" 
-                className="max-h-16 max-w-full object-contain"
-              />
-            </div>
-          ) : (
-            <div className="flex items-center justify-center gap-3">
-              <div className="p-2 rounded-lg bg-primary">
-                <Sparkles className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <CardTitle className="text-2xl">{brand.appName}</CardTitle>
-            </div>
-          )}
+          <div className="w-full flex justify-center">
+            <img 
+              src={brand.logoUrl || defaultLogo} 
+              alt="Logo" 
+              className="max-h-20 max-w-full object-contain"
+            />
+          </div>
           <CardDescription>Entre na sua conta para continuar</CardDescription>
         </CardHeader>
         
