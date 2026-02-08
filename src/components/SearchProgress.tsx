@@ -92,7 +92,7 @@ export function SearchProgress({ isLoading, source }: SearchProgressProps) {
             </h3>
             <p className="text-sm text-muted-foreground">
               {source === 'instagram' 
-                ? 'Conectando à API do Apify...' 
+                ? 'Conectando via Firecrawl...' 
                 : 'Buscando estabelecimentos...'}
             </p>
           </div>
