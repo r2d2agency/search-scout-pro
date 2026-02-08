@@ -104,4 +104,103 @@ router.put('/brand', authenticate, requireAdmin, async (req, res) => {
   }
 });
 
+// =====================================================
+// Chaves de API do usuário
+// =====================================================
+
+// Obter chaves de API do usuário atual
+router.get('/api-keys', authenticate, async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT key_type, 
+              CASE WHEN api_key IS NOT NULL AND api_key != '' 
+                   THEN CONCAT(LEFT(api_key, 8), '...', RIGHT(api_key, 4))
+                   ELSE '' 
+              END as api_key_masked,
+              is_active,
+              updated_at
+       FROM user_api_keys 
+       WHERE user_id = $1`,
+      [req.user.id]
+    );
+
+    const keys = {};
+    result.rows.forEach(row => {
+      keys[row.key_type] = {
+        hasKey: row.api_key_masked !== '',
+        maskedKey: row.api_key_masked,
+        isActive: row.is_active,
+        updatedAt: row.updated_at
+      };
+    });
+
+    res.json(keys);
+  } catch (error) {
+    console.error('Erro ao buscar chaves do usuário:', error);
+    res.status(500).json({ message: 'Erro ao buscar chaves de API' });
+  }
+});
+
+// Salvar/atualizar chave de API do usuário
+router.put('/api-keys/:keyType', authenticate, async (req, res) => {
+  try {
+    const { keyType } = req.params;
+    const { apiKey } = req.body;
+
+    // Validar tipo de chave permitido
+    const allowedTypes = ['apify', 'serp'];
+    if (!allowedTypes.includes(keyType)) {
+      return res.status(400).json({ message: 'Tipo de chave inválido' });
+    }
+
+    // Validar tamanho da chave
+    if (apiKey && apiKey.length > 500) {
+      return res.status(400).json({ message: 'Chave de API muito longa' });
+    }
+
+    if (apiKey && apiKey.trim()) {
+      // Inserir ou atualizar
+      await db.query(
+        `INSERT INTO user_api_keys (user_id, key_type, api_key, is_active, updated_at)
+         VALUES ($1, $2, $3, true, NOW())
+         ON CONFLICT (user_id, key_type) 
+         DO UPDATE SET api_key = $3, is_active = true, updated_at = NOW()`,
+        [req.user.id, keyType, apiKey.trim()]
+      );
+      res.json({ message: 'Chave de API salva com sucesso' });
+    } else {
+      // Remover chave
+      await db.query(
+        `DELETE FROM user_api_keys WHERE user_id = $1 AND key_type = $2`,
+        [req.user.id, keyType]
+      );
+      res.json({ message: 'Chave de API removida' });
+    }
+  } catch (error) {
+    console.error('Erro ao salvar chave do usuário:', error);
+    res.status(500).json({ message: 'Erro ao salvar chave de API' });
+  }
+});
+
+// Função helper para obter chave de API (prioriza usuário, depois global)
+router.getApiKey = async function(userId, keyType) {
+  // 1. Tentar chave do usuário
+  const userKeyResult = await db.query(
+    `SELECT api_key FROM user_api_keys 
+     WHERE user_id = $1 AND key_type = $2 AND is_active = true`,
+    [userId, keyType]
+  );
+  
+  if (userKeyResult.rows.length > 0 && userKeyResult.rows[0].api_key) {
+    return { key: userKeyResult.rows[0].api_key, source: 'user' };
+  }
+
+  // 2. Fallback para chave global (variável de ambiente)
+  if (keyType === 'apify' && process.env.APIFY_API_KEY) {
+    return { key: process.env.APIFY_API_KEY, source: 'global' };
+  }
+
+  return { key: null, source: null };
+};
+
 module.exports = router;

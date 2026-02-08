@@ -8,7 +8,8 @@ import {
   CreditCard,
   DollarSign,
   Sparkles,
-  Key
+  Key,
+  Cog
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,13 +19,14 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/search', icon: Search, label: 'Pesquisar' },
   { to: '/leads', icon: Database, label: 'Leads Salvos' },
+  { to: '/settings', icon: Settings, label: 'Configurações' },
   { to: '/pricing', icon: DollarSign, label: 'Planos' },
 ];
 
 const adminItems = [
   { to: '/admin/plans', icon: CreditCard, label: 'Gerenciar Planos' },
   { to: '/admin/users', icon: Users, label: 'Gerenciar Usuários' },
-  { to: '/admin', icon: Settings, label: 'Configurações' },
+  { to: '/admin', icon: Cog, label: 'Config. Sistema' },
 ];
 
 const superadminItems = [
