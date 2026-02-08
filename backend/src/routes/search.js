@@ -82,8 +82,8 @@ router.post('/', authenticate, async (req, res) => {
       });
     }
 
-    // Fazer requisição à Serper.dev API
-    const serpResponse = await fetch('https://google.serper.dev/search', {
+    // Fazer requisição ao endpoint Places da Serper.dev (Google Meu Negócio)
+    const serpResponse = await fetch('https://google.serper.dev/places', {
       method: 'POST',
       headers: {
         'X-API-KEY': apiKey,
@@ -93,8 +93,7 @@ router.post('/', authenticate, async (req, res) => {
         q: query,
         gl: 'br',
         hl: 'pt-br',
-        num: 20,
-        page: page
+        num: 20
       })
     });
 
@@ -132,29 +131,22 @@ router.post('/', authenticate, async (req, res) => {
     // Incrementar uso do usuário
     await incrementUsage(req.user.id, 'search', 1);
 
-    // Extrair leads dos resultados (Serper.dev usa 'organic' e 'places')
-    const organicResults = serpData.organic || [];
-    const localResults = serpData.places || [];
+    // Extrair leads dos resultados Places (Google Meu Negócio)
+    const placesResults = serpData.places || [];
     
     const leads = [];
     
-    // Processar resultados orgânicos
-    for (const result of organicResults) {
-      const lead = extractLeadFromResult(result, query, 'organic');
-      if (lead) leads.push(lead);
-    }
-    
-    // Processar resultados locais (Google Maps)
-    for (const result of localResults) {
-      const lead = extractLeadFromLocalResult(result, query);
+    // Processar resultados do Google Meu Negócio
+    for (const result of placesResults) {
+      const lead = extractLeadFromPlaces(result, query);
       if (lead) leads.push(lead);
     }
 
-    // Informações de paginação (Serper.dev format)
+    // Informações de paginação
     const pagination = {
       currentPage: page,
-      totalResults: serpData.searchParameters?.num || leads.length,
-      hasMore: organicResults.length >= 20,
+      totalResults: leads.length,
+      hasMore: placesResults.length >= 20,
       nextPageToken: null
     };
 
@@ -216,38 +208,52 @@ function extractLeadFromResult(result, searchTerm, type = 'organic') {
   };
 }
 
-// Extrair lead de resultado local (Google Maps)
-function extractLeadFromLocalResult(result, searchTerm) {
+// Extrair lead de resultado do Google Meu Negócio (Places)
+function extractLeadFromPlaces(result, searchTerm) {
+  // Limpar telefone
+  const cleanPhone = result.phone ? result.phone.replace(/\D/g, '') : null;
+  
   return {
     id: `lead-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     company: result.title || 'Sem nome',
-    website: result.website || result.link || null,
-    phone: result.phone ? result.phone.replace(/\D/g, '') : null,
-    whatsapp: result.phone ? result.phone.replace(/\D/g, '') : null,
-    email: null,
+    website: result.website || null,
+    phone: cleanPhone,
+    whatsapp: cleanPhone,
+    email: null, // Google Places não retorna email
     whatsappValid: null,
-    source: 'Google Maps',
+    source: 'Google Meu Negócio',
     searchTerm,
     createdAt: new Date().toISOString(),
-    // Dados extras do Google Maps
+    // Dados completos da ficha do Google Meu Negócio
     serpData: {
-      type: 'local',
-      position: result.position,
-      placeId: result.place_id || null,
-      dataId: result.data_id || null,
-      dataCid: result.data_cid || null,
+      type: 'places',
+      position: result.position || null,
+      // Dados de contato
+      phoneFormatted: result.phone || null,
       address: result.address || null,
+      // Avaliações
       rating: result.rating || null,
+      ratingCount: result.ratingCount || null,
       reviews: result.reviews || null,
-      reviewsOriginal: result.reviews_original || null,
-      priceLevel: result.price || null,
+      // Categoria e tipo
+      category: result.category || null,
       type: result.type || null,
-      types: result.types || null,
-      thumbnail: result.thumbnail || null,
-      serviceOptions: result.service_options || null,
-      hours: result.hours || null,
-      operatingHours: result.operating_hours || null,
-      gpsCoordinates: result.gps_coordinates || null,
+      // Identificadores Google
+      cid: result.cid || null,
+      placeId: result.placeId || null,
+      // Localização
+      latitude: result.latitude || null,
+      longitude: result.longitude || null,
+      // Horários
+      openingHours: result.openingHours || null,
+      // Imagens
+      thumbnailUrl: result.thumbnailUrl || null,
+      imageUrl: result.imageUrl || null,
+      // Serviços
+      serviceOptions: result.serviceOptions || null,
+      // Preço
+      priceLevel: result.priceLevel || null,
+      // Descrição
       description: result.description || null
     }
   };
