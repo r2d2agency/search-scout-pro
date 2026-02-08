@@ -256,6 +256,35 @@ export const serpKeysApi = {
   },
 };
 
+// API Apify Keys (Instagram)
+export const apifyKeysApi = {
+  async list() {
+    return apiRequest<any[]>('/apify-keys');
+  },
+
+  async create(data: { name: string; apiKey: string; monthlyLimit?: number }) {
+    return apiRequest<any>('/apify-keys', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: string, data: { name?: string; apiKey?: string; isActive?: boolean; monthlyLimit?: number }) {
+    return apiRequest<any>(`/apify-keys/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async delete(id: string) {
+    return apiRequest<void>(`/apify-keys/${id}`, { method: 'DELETE' });
+  },
+
+  async resetUsage() {
+    return apiRequest<void>('/apify-keys/reset-usage', { method: 'POST' });
+  },
+};
+
 // API Search (usa chaves SERP globais)
 export const searchApi = {
   async search(query: string, page = 1) {
