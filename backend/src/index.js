@@ -18,22 +18,47 @@ const PORT = process.env.PORT || 3000;
 // Trust proxy (Easypanel/nginx)
 app.set('trust proxy', 1);
 
-// Middleware
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
-}));
+// CORS - configurar ANTES do helmet
+const allowedOrigins = process.env.FRONTEND_URL 
+  ? process.env.FRONTEND_URL.split(',').map(o => o.trim())
+  : ['*'];
 
-// CORS - permitir origens específicas ou todas
 const corsOptions = {
-  origin: process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',') : '*',
+  origin: function (origin, callback) {
+    // Permitir requests sem origin (mobile apps, curl, etc)
+    if (!origin) return callback(null, true);
+    
+    // Se allowedOrigins contém '*', permite tudo
+    if (allowedOrigins.includes('*')) return callback(null, true);
+    
+    // Verifica se a origin está na lista
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(null, true); // Temporariamente permite para debug
+    }
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['Content-Length', 'X-Request-Id'],
+  maxAge: 86400, // Cache preflight por 24h
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
+
+// Aplicar CORS primeiro
 app.use(cors(corsOptions));
 
-// Handle preflight requests
+// Handle preflight requests explicitamente
 app.options('*', cors(corsOptions));
+
+// Middleware de segurança
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginOpenerPolicy: { policy: "unsafe-none" }
+}));
 
 app.use(express.json({ limit: '10mb' }));
 
