@@ -120,6 +120,38 @@ CREATE TABLE IF NOT EXISTS serp_api_keys (
 CREATE INDEX IF NOT EXISTS idx_serp_api_keys_active ON serp_api_keys(is_active);
 
 -- =====================================================
+-- TABELA: apify_api_keys (chaves Apify para Instagram)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS apify_api_keys (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL,
+    api_key VARCHAR(255) NOT NULL,
+    is_active BOOLEAN DEFAULT true,
+    usage_count INT DEFAULT 0,
+    monthly_limit INT DEFAULT 100,
+    last_used_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_apify_api_keys_active ON apify_api_keys(is_active);
+
+-- =====================================================
+-- TABELA: firecrawl_api_keys (chaves Firecrawl para Instagram)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS firecrawl_api_keys (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL,
+    api_key VARCHAR(255) NOT NULL,
+    is_active BOOLEAN DEFAULT true,
+    usage_count INT DEFAULT 0,
+    monthly_limit INT DEFAULT 500,
+    last_used_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_firecrawl_api_keys_active ON firecrawl_api_keys(is_active);
+
+-- =====================================================
 -- TABELA: user_api_keys (chaves de API por usuário)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS user_api_keys (
