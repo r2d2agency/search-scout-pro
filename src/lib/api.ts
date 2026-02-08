@@ -81,32 +81,88 @@ export async function deleteLead(id: string): Promise<void> {
   });
 }
 
-// Exportar leads para CSV
+// Exportar leads para CSV com dados completos
 export function exportToCSV(leads: Lead[]): void {
-  const headers = ['Empresa', 'Website', 'Telefone', 'WhatsApp', 'Email', 'WhatsApp Válido', 'Fonte', 'Termo de Pesquisa', 'Data'];
+  // Headers básicos + campos extras da SERP
+  const headers = [
+    'Empresa',
+    'Website',
+    'Telefone',
+    'WhatsApp',
+    'Email',
+    'WhatsApp Válido',
+    'Fonte',
+    'Termo de Pesquisa',
+    'Data',
+    // Dados extras da SERP
+    'Posição',
+    'Descrição',
+    'Endereço',
+    'Avaliação',
+    'Num. Avaliações',
+    'Categoria',
+    'Horário',
+    'Faixa de Preço'
+  ];
   
-  const rows = leads.map(lead => [
-    lead.company,
-    lead.website || '',
-    lead.phone || '',
-    lead.whatsapp || '',
-    lead.email || '',
-    lead.whatsappValid === null ? 'Não verificado' : lead.whatsappValid ? 'Sim' : 'Não',
-    lead.source,
-    lead.searchTerm,
-    new Date(lead.createdAt).toLocaleDateString('pt-BR'),
-  ]);
+  const rows = leads.map(lead => {
+    const serpData = lead.serpData || ({} as any);
+    
+    return [
+      lead.company,
+      lead.website || '',
+      lead.phone || '',
+      lead.whatsapp || '',
+      lead.email || '',
+      lead.whatsappValid === null ? 'Não verificado' : lead.whatsappValid ? 'Sim' : 'Não',
+      lead.source,
+      lead.searchTerm,
+      new Date(lead.createdAt).toLocaleDateString('pt-BR'),
+      // Dados extras
+      serpData.position || '',
+      serpData.snippet || serpData.description || '',
+      serpData.address || '',
+      serpData.rating || '',
+      serpData.reviews || '',
+      serpData.businessType || serpData.type || '',
+      serpData.hours || '',
+      serpData.priceLevel || ''
+    ];
+  });
+
+  // Escapar valores para CSV
+  const escapeCSV = (value: any): string => {
+    const str = String(value || '');
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
 
   const csvContent = [
-    headers.join(','),
-    ...rows.map(row => row.map(cell => `"${cell}"`).join(',')),
+    headers.map(h => escapeCSV(h)).join(','),
+    ...rows.map(row => row.map(cell => escapeCSV(cell)).join(',')),
   ].join('\n');
 
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  // Adicionar BOM para UTF-8 (compatibilidade com Excel)
+  const BOM = '\uFEFF';
+  const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = `leads_${new Date().toISOString().split('T')[0]}.csv`;
   link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+// Exportar leads para JSON completo
+export function exportToJSON(leads: Lead[]): void {
+  const data = JSON.stringify(leads, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `leads_${new Date().toISOString().split('T')[0]}.json`;
+  link.click();
+  URL.revokeObjectURL(link.href);
 }
 
 // Admin Settings

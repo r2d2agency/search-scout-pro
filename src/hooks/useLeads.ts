@@ -1,9 +1,7 @@
 import { useState, useCallback } from 'react';
-import { Lead, SearchResult, PaginationInfo } from '@/types/lead';
+import { Lead, PaginationInfo } from '@/types/lead';
 import { toast } from '@/hooks/use-toast';
-import { leadsApi } from '@/lib/apiClient';
-
-let idCounter = 1;
+import { leadsApi, searchApi } from '@/lib/apiClient';
 
 export function useLeads() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -14,59 +12,66 @@ export function useLeads() {
     hasMore: false,
   });
 
-  const extractLeadsFromResults = useCallback((results: SearchResult[], searchTerm: string): Lead[] => {
-    return results.map((result) => {
-      const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-      const phoneRegex = /(?:\+55\s?)?(?:\(?\d{2}\)?[\s-]?)?\d{4,5}[\s-]?\d{4}/g;
-      
-      const emails = (result.snippet + ' ' + result.title).match(emailRegex);
-      const phones = (result.snippet + ' ' + result.title).match(phoneRegex);
-      
-      const companyName = result.title.split(' - ')[0].split(' | ')[0].trim();
-      
-      return {
-        id: `lead-${idCounter++}`,
-        company: companyName,
-        website: result.link,
-        phone: phones?.[0] || null,
-        whatsapp: phones?.[0] || null,
-        email: emails?.[0] || null,
-        whatsappValid: null,
-        source: 'Google',
-        searchTerm,
-        createdAt: new Date().toISOString(),
-      };
-    });
-  }, []);
-
   const search = useCallback(async (query: string, page: number = 1) => {
     setIsLoading(true);
     
     try {
-      // TODO: Integrar com SERP API real quando configurada
-      // Por enquanto, mostra mensagem que precisa configurar
-      toast({
-        title: 'SERP API não configurada',
-        description: 'Configure a SERP API nas configurações do admin para realizar pesquisas reais.',
-        variant: 'destructive',
-      });
+      const response = await searchApi.search(query, page);
       
-      // Limpar resultados anteriores se for nova pesquisa
+      // Se for nova pesquisa (página 1), substituir leads
+      // Se for paginação, adicionar aos existentes
       if (page === 1) {
-        setLeads([]);
+        setLeads(response.leads);
+      } else {
+        setLeads(prev => [...prev, ...response.leads]);
       }
       
-      setPagination({
-        currentPage: page,
-        totalResults: 0,
-        hasMore: false,
-      });
+      setPagination(response.pagination);
+
+      if (response.leads.length > 0) {
+        toast({
+          title: 'Pesquisa concluída',
+          description: `${response.leads.length} resultados encontrados`,
+        });
+      } else {
+        toast({
+          title: 'Nenhum resultado',
+          description: 'Tente outro termo de pesquisa',
+        });
+      }
     } catch (error) {
-      toast({
-        title: 'Erro na pesquisa',
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
-        variant: 'destructive',
-      });
+      const message = error instanceof Error ? error.message : 'Erro desconhecido';
+      
+      // Verificar se é erro de limite ou chave
+      if (message.includes('Limite')) {
+        toast({
+          title: 'Limite atingido',
+          description: message,
+          variant: 'destructive',
+        });
+      } else if (message.includes('chave')) {
+        toast({
+          title: 'SERP API não configurada',
+          description: 'Nenhuma chave SERP disponível. Contate o administrador.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Erro na pesquisa',
+          description: message,
+          variant: 'destructive',
+        });
+      }
+
+      // Limpar se for nova pesquisa com erro
+      if (page === 1) {
+        setLeads([]);
+        setPagination({
+          currentPage: 1,
+          totalResults: 0,
+          hasMore: false,
+        });
+      }
     } finally {
       setIsLoading(false);
     }
