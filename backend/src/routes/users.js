@@ -1,20 +1,31 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../config/database');
-const { authenticate, requireAdmin } = require('../middleware/auth');
+const { authenticate, requireAdmin, requireSuperAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Listar todos os usuários (admin only)
+// Listar usuários (admin: vê todos, user: não tem acesso)
 router.get('/', authenticate, requireAdmin, async (req, res) => {
   try {
-    const result = await db.query(
-      `SELECT u.id, u.email, u.name, u.role, u.plan_id, u.created_at,
-              p.name as plan_name
+    let query = `
+      SELECT u.id, u.email, u.name, u.role, u.plan_id, u.created_at, u.created_by,
+             p.name as plan_name,
+             c.name as created_by_name
        FROM users u
        LEFT JOIN plans p ON u.plan_id = p.id
-       ORDER BY u.created_at DESC`
-    );
+       LEFT JOIN users c ON u.created_by = c.id
+    `;
+    
+    // Superadmin vê todos, admin vê apenas usuários que criou
+    if (req.user.role !== 'superadmin') {
+      query += ` WHERE u.created_by = $1 OR u.id = $1`;
+    }
+    
+    query += ` ORDER BY u.created_at DESC`;
+
+    const params = req.user.role !== 'superadmin' ? [req.user.id] : [];
+    const result = await db.query(query, params);
 
     const users = result.rows.map(row => ({
       id: row.id,
@@ -23,7 +34,9 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
       role: row.role,
       planId: row.plan_id,
       planName: row.plan_name,
-      createdAt: row.created_at
+      createdAt: row.created_at,
+      createdBy: row.created_by,
+      createdByName: row.created_by_name
     }));
 
     res.json(users);
@@ -33,14 +46,81 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
   }
 });
 
-// Atualizar usuário (admin only)
+// Criar novo usuário (admin pode criar usuários)
+router.post('/', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { email, password, name, role = 'user', planId = 'free' } = req.body;
+
+    // Validar dados
+    if (!email || !password || !name) {
+      return res.status(400).json({ message: 'Email, senha e nome são obrigatórios' });
+    }
+
+    // Verificar se email já existe
+    const existingUser = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (existingUser.rows.length > 0) {
+      return res.status(409).json({ message: 'Email já cadastrado' });
+    }
+
+    // Apenas superadmin pode criar admins
+    let finalRole = role;
+    if (role === 'admin' && req.user.role !== 'superadmin') {
+      finalRole = 'user';
+    }
+    // Ninguém pode criar superadmin via API
+    if (role === 'superadmin') {
+      finalRole = 'admin';
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const result = await db.query(
+      `INSERT INTO users (email, password_hash, name, role, plan_id, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, email, name, role, plan_id, created_at`,
+      [email, passwordHash, name, finalRole, planId, req.user.id]
+    );
+
+    const user = result.rows[0];
+    res.status(201).json({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      planId: user.plan_id,
+      createdAt: user.created_at
+    });
+  } catch (error) {
+    console.error('Erro ao criar usuário:', error);
+    res.status(500).json({ message: 'Erro ao criar usuário' });
+  }
+});
+
+// Atualizar usuário
 router.put('/:id', authenticate, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, email, role, planId, password } = req.body;
 
+    // Verificar permissão (admin só pode editar usuários que criou)
+    if (req.user.role !== 'superadmin') {
+      const checkResult = await db.query(
+        'SELECT id FROM users WHERE id = $1 AND (created_by = $2 OR id = $2)',
+        [id, req.user.id]
+      );
+      if (checkResult.rows.length === 0) {
+        return res.status(403).json({ message: 'Você não tem permissão para editar este usuário' });
+      }
+    }
+
+    // Não permitir mudar role para superadmin
+    let finalRole = role;
+    if (role === 'superadmin' && req.user.role !== 'superadmin') {
+      finalRole = 'admin';
+    }
+
     let query = 'UPDATE users SET name = $1, email = $2, role = $3, plan_id = $4, updated_at = NOW()';
-    let params = [name, email, role, planId];
+    let params = [name, email, finalRole, planId];
 
     if (password) {
       const passwordHash = await bcrypt.hash(password, 10);
@@ -72,7 +152,7 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
   }
 });
 
-// Deletar usuário (admin only)
+// Deletar usuário
 router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -80,6 +160,17 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
     // Não permitir auto-exclusão
     if (id === req.user.id) {
       return res.status(400).json({ message: 'Você não pode excluir sua própria conta' });
+    }
+
+    // Verificar permissão (admin só pode deletar usuários que criou)
+    if (req.user.role !== 'superadmin') {
+      const checkResult = await db.query(
+        'SELECT id FROM users WHERE id = $1 AND created_by = $2',
+        [id, req.user.id]
+      );
+      if (checkResult.rows.length === 0) {
+        return res.status(403).json({ message: 'Você não tem permissão para excluir este usuário' });
+      }
     }
 
     const result = await db.query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
@@ -101,11 +192,22 @@ router.get('/:id/usage', authenticate, async (req, res) => {
     const { id } = req.params;
 
     // Usuário normal só pode ver seu próprio uso
-    if (req.user.role !== 'admin' && req.user.id !== id) {
+    // Admin pode ver uso de usuários que criou
+    if (req.user.role === 'user' && req.user.id !== id) {
       return res.status(403).json({ message: 'Acesso negado' });
     }
 
-    const month = new Date().toISOString().slice(0, 7); // YYYY-MM
+    if (req.user.role === 'admin') {
+      const checkResult = await db.query(
+        'SELECT id FROM users WHERE id = $1 AND (created_by = $2 OR id = $2)',
+        [id, req.user.id]
+      );
+      if (checkResult.rows.length === 0) {
+        return res.status(403).json({ message: 'Acesso negado' });
+      }
+    }
+
+    const month = new Date().toISOString().slice(0, 7);
 
     const result = await db.query(
       `SELECT searches_used, leads_extracted, whatsapp_verified

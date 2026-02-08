@@ -9,24 +9,26 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- =====================================================
 -- TABELA: users (usuários)
 -- =====================================================
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
-    role VARCHAR(20) DEFAULT 'user' CHECK (role IN ('admin', 'user')),
+    role VARCHAR(20) DEFAULT 'user' CHECK (role IN ('superadmin', 'admin', 'user')),
     plan_id VARCHAR(50) DEFAULT 'free',
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_plan_id ON users(plan_id);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_plan_id ON users(plan_id);
+CREATE INDEX IF NOT EXISTS idx_users_created_by ON users(created_by);
 
 -- =====================================================
 -- TABELA: plans (planos de assinatura)
 -- =====================================================
-CREATE TABLE plans (
+CREATE TABLE IF NOT EXISTS plans (
     id VARCHAR(50) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     description TEXT,
@@ -39,16 +41,17 @@ CREATE TABLE plans (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
--- Inserir planos padrão
+-- Inserir planos padrão (apenas se não existirem)
 INSERT INTO plans (id, name, description, monthly_searches, monthly_leads, whatsapp_verifications, price, features) VALUES
 ('free', 'Gratuito', 'Para começar a explorar', 10, 50, 20, 0, '["10 pesquisas/mês", "50 leads/mês", "20 verificações WhatsApp"]'),
 ('pro', 'Profissional', 'Para profissionais de vendas', 100, 500, 300, 97, '["100 pesquisas/mês", "500 leads/mês", "300 verificações WhatsApp", "Suporte prioritário"]'),
-('enterprise', 'Empresarial', 'Para equipes e empresas', 1000, 5000, 3000, 297, '["1000 pesquisas/mês", "5000 leads/mês", "3000 verificações WhatsApp", "API access", "Suporte 24/7"]');
+('enterprise', 'Empresarial', 'Para equipes e empresas', 1000, 5000, 3000, 297, '["1000 pesquisas/mês", "5000 leads/mês", "3000 verificações WhatsApp", "API access", "Suporte 24/7"]')
+ON CONFLICT (id) DO NOTHING;
 
 -- =====================================================
 -- TABELA: user_usage (uso mensal por usuário)
 -- =====================================================
-CREATE TABLE user_usage (
+CREATE TABLE IF NOT EXISTS user_usage (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     month VARCHAR(7) NOT NULL, -- Formato: YYYY-MM
@@ -60,14 +63,14 @@ CREATE TABLE user_usage (
     UNIQUE(user_id, month)
 );
 
-CREATE INDEX idx_user_usage_user_month ON user_usage(user_id, month);
+CREATE INDEX IF NOT EXISTS idx_user_usage_user_month ON user_usage(user_id, month);
 
 -- =====================================================
 -- TABELA: leads
 -- =====================================================
-CREATE TABLE leads (
+CREATE TABLE IF NOT EXISTS leads (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     company VARCHAR(255) NOT NULL,
     website VARCHAR(500),
     phone VARCHAR(50),
@@ -79,14 +82,14 @@ CREATE TABLE leads (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_leads_user_id ON leads(user_id);
-CREATE INDEX idx_leads_search_term ON leads(search_term);
-CREATE INDEX idx_leads_created_at ON leads(created_at);
+CREATE INDEX IF NOT EXISTS idx_leads_user_id ON leads(user_id);
+CREATE INDEX IF NOT EXISTS idx_leads_search_term ON leads(search_term);
+CREATE INDEX IF NOT EXISTS idx_leads_created_at ON leads(created_at);
 
 -- =====================================================
 -- TABELA: settings (configurações do sistema)
 -- =====================================================
-CREATE TABLE settings (
+CREATE TABLE IF NOT EXISTS settings (
     id SERIAL PRIMARY KEY,
     key VARCHAR(100) UNIQUE NOT NULL,
     value TEXT,
@@ -98,12 +101,13 @@ INSERT INTO settings (key, value) VALUES
 ('serp_api_key', ''),
 ('evolution_api_url', ''),
 ('evolution_api_key', ''),
-('evolution_instance', '');
+('evolution_instance', '')
+ON CONFLICT (key) DO NOTHING;
 
 -- =====================================================
 -- TABELA: sessions (sessões de autenticação)
 -- =====================================================
-CREATE TABLE sessions (
+CREATE TABLE IF NOT EXISTS sessions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token VARCHAR(255) UNIQUE NOT NULL,
@@ -111,8 +115,8 @@ CREATE TABLE sessions (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_sessions_token ON sessions(token);
-CREATE INDEX idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
 
 -- =====================================================
 -- FUNÇÕES AUXILIARES
@@ -127,14 +131,22 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Triggers para updated_at
-CREATE TRIGGER update_users_updated_at 
-    BEFORE UPDATE ON users 
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_user_usage_updated_at 
-    BEFORE UPDATE ON user_usage 
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Triggers para updated_at (criar apenas se não existir)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_users_updated_at') THEN
+        CREATE TRIGGER update_users_updated_at 
+            BEFORE UPDATE ON users 
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_user_usage_updated_at') THEN
+        CREATE TRIGGER update_user_usage_updated_at 
+            BEFORE UPDATE ON user_usage 
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+END;
+$$;
 
 -- =====================================================
 -- FUNÇÃO: Verificar limite de uso

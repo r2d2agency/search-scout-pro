@@ -86,6 +86,13 @@ export const usersApi = {
     return apiRequest<any[]>('/users');
   },
 
+  async create(data: { email: string; password: string; name: string; role?: string; planId?: string }) {
+    return apiRequest<any>('/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
   async update(id: string, data: any) {
     return apiRequest<any>(`/users/${id}`, {
       method: 'PUT',

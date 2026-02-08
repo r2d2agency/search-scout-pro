@@ -2,9 +2,11 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'user';
+  role: 'superadmin' | 'admin' | 'user';
   planId: string;
   createdAt: string;
+  createdBy?: string;
+  createdByName?: string;
 }
 
 export interface Plan {
