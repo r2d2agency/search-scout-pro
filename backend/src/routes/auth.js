@@ -101,6 +101,52 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Login simplificado para Extensão (apenas valida email e plano)
+router.post('/extension-login', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: 'Email é obrigatório' });
+    }
+
+    // Buscar usuário e plano
+    const result = await db.query(`
+      SELECT u.id, u.email, u.name, u.role, u.plan_id, p.name as plan_name
+      FROM users u
+      LEFT JOIN plans p ON u.plan_id = p.id
+      WHERE u.email = $1
+    `, [email]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Usuário não encontrado' });
+    }
+
+    const user = result.rows[0];
+
+    // Verificar se o plano permite uso da extensão (Bloquear Free se necessário)
+    // Regra: Apenas planos pagos ou admins podem usar a extensão
+    if (user.plan_id === 'free' && user.role !== 'superadmin' && user.role !== 'admin') {
+      return res.status(403).json({ message: 'Seu plano Free não permite uso da extensão. Faça upgrade.' });
+    }
+
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        planId: user.plan_id,
+        planName: user.plan_name
+      }
+    });
+
+  } catch (error) {
+    console.error('Erro no login da extensão:', error);
+    res.status(500).json({ message: 'Erro ao validar usuário' });
+  }
+});
+
 // Obter usuário atual
 router.get('/me', authenticate, async (req, res) => {
   try {

@@ -16,31 +16,126 @@
     }
     
     body { 
-      width: 340px; 
-      padding: 20px; 
+      width: 600px; 
+      padding: 0; 
       font-family: 'Inter', sans-serif; 
       background-color: var(--bg);
       color: var(--text);
       margin: 0;
+      display: flex;
+      flex-direction: column;
+      height: auto;
+      min-height: 600px;
     }
 
-    /* Header & Logo */
-    .header {
+    .screen {
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      box-sizing: border-box;
+      justify-content: center; /* Center vertically */
+    }
+
+    /* Override for Main Screen to start at top */
+    #mainScreen {
+      justify-content: flex-start;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Login Screen Specifics */
+    #loginScreen {
+      align-items: center;
+      justify-content: center;
       text-align: center;
-      margin-bottom: 20px;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 15px;
+      height: 100%;
+      padding-top: 60px;
     }
-    .logo {
-      height: 40px;
-      margin-bottom: 10px;
+
+    .login-logo {
+      width: 120px;
+      height: auto;
+      margin-bottom: 24px;
+      filter: drop-shadow(0 0 15px rgba(0, 255, 255, 0.2));
     }
-    h3 { 
-      margin: 0; 
-      font-family: 'Orbitron', sans-serif; 
+
+    .login-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 24px;
       color: var(--primary);
+      margin-bottom: 32px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    /* Main Screen Specifics */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-logo {
+      width: 32px;
+      height: auto;
+    }
+
+    .header-title {
+      font-family: 'Orbitron', sans-serif;
       font-size: 16px;
-      letter-spacing: 1px;
+      color: var(--primary);
+      margin: 0;
+    }
+
+    .logout-btn {
+      background: none;
+      border: none;
+      color: #666;
+      cursor: pointer;
+      font-size: 12px;
+      padding: 4px 8px;
+    }
+    .logout-btn:hover { color: var(--danger); }
+
+    /* Stats Section */
+    .stats-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 20px;
+      color: white;
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: #888;
       text-transform: uppercase;
     }
 
@@ -49,17 +144,17 @@
       font-size: 12px;
       color: #888;
       display: block;
-      margin-bottom: 5px;
+      margin-bottom: 6px;
     }
 
     input[type="text"], input[type="password"], input[type="number"], input[type="email"] { 
       width: 100%; 
-      margin-bottom: 12px; 
-      padding: 10px; 
+      margin-bottom: 16px; 
+      padding: 12px; 
       box-sizing: border-box; 
       background: var(--input-bg);
       border: 1px solid var(--border);
-      border-radius: 6px;
+      border-radius: 8px;
       color: white;
       font-family: 'Inter', sans-serif;
       outline: none;
@@ -67,153 +162,231 @@
     }
     input:focus {
       border-color: var(--primary);
-      box-shadow: 0 0 5px rgba(0, 255, 255, 0.2);
-    }
-
-    /* Buttons */
-    button { 
-      width: 100%; 
-      padding: 12px; 
-      border: none; 
-      border-radius: 6px;
-      cursor: pointer; 
-      font-weight: 600; 
-      text-transform: uppercase;
-      font-size: 12px;
-      letter-spacing: 0.5px;
-      transition: all 0.2s;
-      margin-bottom: 10px;
-    }
-    #startBtn {
-      background: var(--primary);
-      color: #000;
-      box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
-    }
-    #startBtn:hover {
-      background: #33ffff;
-      box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
-    }
-    #stopBtn {
-      background: var(--danger);
-      color: white;
-    }
-    #saveConfig {
-      background: var(--card);
-      border: 1px solid var(--border);
-      color: #888;
-    }
-    #saveConfig:hover {
-      border-color: var(--secondary);
-      color: var(--secondary);
+      box-shadow: 0 0 8px rgba(0, 255, 255, 0.2);
     }
 
     /* Radio Group */
     .radio-group {
       display: flex;
-      gap: 15px;
-      margin-bottom: 20px;
       background: var(--input-bg);
-      padding: 10px;
-      border-radius: 6px;
+      padding: 4px;
+      border-radius: 8px;
+      margin-bottom: 16px;
       border: 1px solid var(--border);
     }
-    .radio-group label {
-      margin: 0;
-      color: var(--text);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    input[type="radio"] {
-      accent-color: var(--primary);
+
+    .radio-option {
+      flex: 1;
+      text-align: center;
     }
 
-    /* Status & Progress */
-    .status { 
-      font-size: 12px; 
-      margin-top: 10px; 
-      color: #888; 
-      text-align: center;
-      min-height: 18px;
+    .radio-option input {
+      display: none;
+    }
+
+    .radio-option span {
+      display: block;
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      color: #888;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+
+    .radio-option input:checked + span {
+      background: var(--card);
+      color: white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    /* Buttons */
+    button.action-btn { 
+      width: 100%; 
+      padding: 14px; 
+      border: none; 
+      border-radius: 8px;
+      cursor: pointer; 
+      font-weight: 600; 
+      text-transform: uppercase;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      transition: all 0.2s;
+      margin-bottom: 12px;
     }
     
-    #progressContainer {
-      background: var(--card);
-      padding: 10px;
-      border-radius: 6px;
-      border: 1px solid var(--border);
+    .btn-primary {
+      background: var(--primary);
+      color: #000;
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+    }
+    .btn-primary:hover {
+      background: #33ffff;
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+      transform: translateY(-1px);
     }
 
-    /* Config Section */
-    .config-section { 
-      border-top: 1px solid var(--border); 
-      padding-top: 15px; 
-      margin-top: 20px; 
+    .btn-danger {
+      background: var(--danger);
+      color: white;
     }
-    .config-title {
-      font-family: 'Orbitron', sans-serif;
+
+    .btn-secondary {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: #ccc;
+    }
+
+    /* Settings Section */
+    .settings-toggle {
+      text-align: center;
+      margin-top: 12px;
+      cursor: pointer;
+      font-size: 12px;
       color: var(--secondary);
-      font-size: 11px;
-      margin-bottom: 10px;
-      display: block;
+      text-decoration: underline;
+    }
+
+    .settings-panel {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* Progress Bar */
+    #progressContainer {
+      display: none;
+      margin-bottom: 20px;
+      background: var(--card);
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 12px;
+      color: #aaa;
+    }
+    
+    .progress-track {
+      width: 100%;
+      height: 6px;
+      background: var(--input-bg);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--secondary), var(--primary));
+      width: 0%;
+      transition: width 0.3s ease;
+      box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+    }
+
+    #status {
+      text-align: center;
+      font-size: 12px;
+      color: #888;
+      margin-top: 8px;
+      min-height: 15px;
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <img src="logo.png" alt="Logo" class="logo">
-    <h3>InstaLead Scout</h3>
-  </div>
-  
-  <div class="radio-group">
-    <label>
-      <input type="radio" name="mode" value="profile" checked> Seguidores
-    </label>
-    <label>
-      <input type="radio" name="mode" value="search"> Pesquisa
-    </label>
+
+  <!-- TELA DE LOGIN -->
+  <div id="loginScreen" class="screen">
+    <img src="icons/icon128.png" class="login-logo" alt="Logo">
+    <div class="login-title">Instalead Scout</div>
+    
+    <input type="email" id="loginEmail" placeholder="Seu E-mail de Acesso" required>
+    <button id="loginBtn" class="action-btn btn-primary">Entrar no Sistema</button>
+    <div id="loginError" style="color: var(--danger); font-size: 12px; margin-top: 10px; display: none;"></div>
   </div>
 
-  <div id="profileInputGroup">
-    <input type="text" id="targetProfile" placeholder="@perfil_alvo">
-  </div>
+  <!-- TELA PRINCIPAL -->
+  <div id="mainScreen" class="screen hidden">
+    <div class="header">
+      <div class="header-left">
+        <img src="icons/icon48.png" class="header-logo" alt="Logo">
+        <h3 class="header-title">Instalead Scout</h3>
+      </div>
+      <button id="logoutBtn" class="logout-btn">Sair</button>
+    </div>
 
-  <div id="searchInputGroup" style="display: none;">
-    <input type="text" id="searchTerm" placeholder="Termo (ex: unimed)">
-  </div>
+    <!-- Stats -->
+    <div class="stats-container">
+      <div class="stat-card">
+        <span class="stat-value" id="leadsToday">0</span>
+        <span class="stat-label">Leads Hoje</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="leadsTotal">0</span>
+        <span class="stat-label">Total Extraído</span>
+      </div>
+    </div>
 
-  <button id="startBtn">INICIAR EXTRAÇÃO</button>
-  <button id="stopBtn" style="display: none;">PARAR</button>
-
-  <div class="status" id="status">Pronto para iniciar</div>
-
-  <div id="progressContainer" style="display: none; margin-top: 15px;">
-    <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px; color: var(--primary);">
-        <span id="progressText">Extraindo...</span>
+    <div id="progressContainer">
+      <div class="progress-header">
+        <span id="progressLabel">Extraindo...</span>
         <span id="progressCount">0/0</span>
-    </div>
-    <div style="width: 100%; height: 6px; background: #222; border-radius: 3px; overflow: hidden;">
-        <div id="progressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); transition: width 0.3s;"></div>
-    </div>
-  </div>
-
-  <div class="config-section">
-    <span class="config-title">CONFIGURAÇÕES</span>
-    <input type="email" id="userEmail" placeholder="Seu Email (Obrigatório)">
-    
-    <div style="display: flex; gap: 10px;">
-        <input type="number" id="maxLeads" placeholder="Max" style="flex: 1;">
-        <input type="number" id="safetyDelay" placeholder="Delay (s)" style="flex: 1;">
+      </div>
+      <div class="progress-track">
+        <div id="progressBar" class="progress-fill"></div>
+      </div>
+      <div id="status">Aguardando início...</div>
     </div>
 
-    <input type="text" id="backendUrl" value="http://localhost:3000/api/leads/extension" placeholder="Backend URL">
-    
-    <!-- Advanced hidden/collapsed if needed, kept simple for now -->
-    <input type="text" id="evoUrl" placeholder="Evolution API URL (Opcional)" style="display:none">
-    <input type="password" id="evoKey" placeholder="Evolution API Key (Opcional)" style="display:none">
-    
-    <button id="saveConfig">SALVAR PREFERÊNCIAS</button>
+    <div class="radio-group">
+      <label class="radio-option">
+        <input type="radio" name="mode" value="profile" checked>
+        <span>Seguidores</span>
+      </label>
+      <label class="radio-option">
+        <input type="radio" name="mode" value="search">
+        <span>Pesquisa</span>
+      </label>
+    </div>
+
+    <!-- Inputs -->
+    <div id="profileInputGroup">
+      <input type="text" id="targetProfile" placeholder="@perfil_alvo (ex: neymarjr)">
+    </div>
+
+    <div id="searchInputGroup" style="display: none;">
+      <input type="text" id="searchTerm" placeholder="Termo de pesquisa (ex: nutris)">
+    </div>
+
+    <!-- Actions -->
+    <button id="startBtn" class="action-btn btn-primary">INICIAR EXTRAÇÃO</button>
+    <button id="stopBtn" class="action-btn btn-danger" style="display: none;">PARAR EXTRAÇÃO</button>
+
+    <!-- Settings Toggle -->
+    <div class="settings-toggle" id="toggleSettings">Configurações Avançadas</div>
+
+    <!-- Settings Panel -->
+    <div id="settingsPanel" class="settings-panel hidden">
+      <label>Limite de Leads</label>
+      <input type="number" id="maxLeads" placeholder="Max" value="50">
+      
+      <label>Delay (segundos)</label>
+      <input type="number" id="safetyDelay" placeholder="Delay" value="5">
+
+      <label>Backend URL</label>
+      <input type="text" id="backendUrl" value="https://backlead.gleego.com.br/api/leads/extension">
+      
+      <div style="display: none;">
+        <input type="text" id="evoUrl" placeholder="Evolution API URL">
+        <input type="text" id="evoKey" placeholder="API Key">
+      </div>
+      
+      <button id="saveConfig" class="action-btn btn-secondary">Salvar Preferências</button>
+    </div>
   </div>
 
   <script src="popup.js"></script>

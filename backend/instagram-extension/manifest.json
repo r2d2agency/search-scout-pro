@@ -10,7 +10,7 @@
   ],
   "host_permissions": [
     "https://www.instagram.com/*",
-    "http://localhost:3000/*"
+    "https://backlead.gleego.com.br/*"
   ],
   "action": {
     "default_popup": "popup.html",

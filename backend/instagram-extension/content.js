@@ -89,6 +89,8 @@ async function startSearchScraping(term) {
     await sleep(5000); 
 
     const processedInSession = new Set();
+    let noNewItemsAttempts = 0;
+    let lastScrollHeight = 0;
     
     while (isScraping) {
         if (scrapedCount >= config.maxLeads) {
@@ -97,7 +99,23 @@ async function startSearchScraping(term) {
             break;
         }
 
+        // Check if we are stuck or at the end
+        const currentScrollHeight = document.body.scrollHeight;
+        if (currentScrollHeight === lastScrollHeight) {
+            noNewItemsAttempts++;
+            console.log(`[Scout] Sem novos itens ou scroll travado (${noNewItemsAttempts}/5)`);
+            if (noNewItemsAttempts > 5) {
+                console.log("Fim dos resultados ou rolagem travada. Parando.");
+                stopScraping();
+                break;
+            }
+        } else {
+            noNewItemsAttempts = 0;
+            lastScrollHeight = currentScrollHeight;
+        }
+
         const links = Array.from(document.querySelectorAll('a[href^="/"]'));
+        let foundNewInBatch = false;
         
         for (let link of links) {
             if (!isScraping) break;
@@ -109,13 +127,16 @@ async function startSearchScraping(term) {
                 !href.startsWith('/p/') && 
                 !href.startsWith('/reels/') && 
                 !href.startsWith('/stories/') &&
-                !href.startsWith('/direct/')) {
+                !href.startsWith('/direct/') &&
+                !href.startsWith('/accounts/') &&
+                !href.includes('legal') && 
+                !href.includes('about')) {
                 
                 const username = href.replace(/\//g, '');
                 
-                // Dedup check (Session + Persistent)
                 if (!processedInSession.has(username) && !processedCache.has(username)) {
                     processedInSession.add(username);
+                    foundNewInBatch = true;
                     console.log(`[Search] Encontrado: ${username}`);
                     
                     const success = await processUser(username);
@@ -135,6 +156,10 @@ async function startSearchScraping(term) {
             }
         }
         
+        if (!foundNewInBatch) {
+             console.log("Nenhum usuário novo neste lote, rolando...");
+        }
+
         window.scrollBy(0, 1000);
         await sleep(3000 + Math.random() * 3000);
     }
@@ -197,7 +222,7 @@ async function processUser(username) {
     
     if (!profileData) {
       console.log(`❌ Não foi possível ler dados de ${username}`);
-      return;
+      return false;
     }
 
     const bio = profileData.biography || "";
@@ -221,12 +246,15 @@ async function processUser(username) {
           source: 'extension_direct'
         });
       }
+      return true;
     } else {
       console.log(`⚪ Sem contatos visíveis em ${username}`);
+      return false;
     }
 
   } catch (e) {
     console.error(`Erro ao processar ${username}:`, e);
+    return false;
   }
 }
 
