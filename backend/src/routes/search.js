@@ -83,6 +83,7 @@ router.post('/', authenticate, async (req, res) => {
     }
 
     // Fazer requisição ao endpoint Places da Serper.dev (Google Meu Negócio)
+    // num: até 100 resultados por página
     const serpResponse = await fetch('https://google.serper.dev/places', {
       method: 'POST',
       headers: {
@@ -93,9 +94,12 @@ router.post('/', authenticate, async (req, res) => {
         q: query,
         gl: 'br',
         hl: 'pt-br',
-        num: 20
+        num: 100,  // Máximo de resultados por requisição
+        page: page // Paginação
       })
     });
+
+    console.log('Serper Places Request:', { query, page, num: 100 });
 
     // Tratar resposta
     const raw = await serpResponse.text();
@@ -210,51 +214,65 @@ function extractLeadFromResult(result, searchTerm, type = 'organic') {
 
 // Extrair lead de resultado do Google Meu Negócio (Places)
 function extractLeadFromPlaces(result, searchTerm) {
-  // Limpar telefone
-  const cleanPhone = result.phone ? result.phone.replace(/\D/g, '') : null;
+  // Limpar telefone para formato numérico
+  const rawPhone = result.phone || result.phoneNumber || null;
+  const cleanPhone = rawPhone ? rawPhone.replace(/\D/g, '') : null;
+  
+  // Tentar extrair email do snippet/descrição (Google não fornece direto)
+  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi;
+  const description = result.description || result.snippet || '';
+  const emailMatch = description.match(emailRegex);
   
   return {
     id: `lead-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    company: result.title || 'Sem nome',
-    website: result.website || null,
+    company: result.title || result.name || 'Sem nome',
+    website: result.website || result.link || null,
     phone: cleanPhone,
     whatsapp: cleanPhone,
-    email: null, // Google Places não retorna email
+    email: emailMatch ? emailMatch[0] : null,
     whatsappValid: null,
     source: 'Google Meu Negócio',
     searchTerm,
     createdAt: new Date().toISOString(),
     // Dados completos da ficha do Google Meu Negócio
+    address: result.address || null,
+    rating: result.rating || null,
+    ratingCount: result.ratingCount || result.reviewCount || null,
+    category: result.category || result.type || null,
     serpData: {
       type: 'places',
       position: result.position || null,
       // Dados de contato
-      phoneFormatted: result.phone || null,
+      phoneFormatted: rawPhone,
       address: result.address || null,
       // Avaliações
       rating: result.rating || null,
-      ratingCount: result.ratingCount || null,
+      ratingCount: result.ratingCount || result.reviewCount || null,
       reviews: result.reviews || null,
       // Categoria e tipo
       category: result.category || null,
       type: result.type || null,
+      types: result.types || null,
       // Identificadores Google
       cid: result.cid || null,
-      placeId: result.placeId || null,
+      placeId: result.placeId || result.place_id || null,
+      fid: result.fid || null,
       // Localização
-      latitude: result.latitude || null,
-      longitude: result.longitude || null,
+      latitude: result.latitude || result.gps_coordinates?.latitude || null,
+      longitude: result.longitude || result.gps_coordinates?.longitude || null,
       // Horários
-      openingHours: result.openingHours || null,
+      openingHours: result.openingHours || result.hours || null,
       // Imagens
-      thumbnailUrl: result.thumbnailUrl || null,
+      thumbnailUrl: result.thumbnailUrl || result.thumbnail || null,
       imageUrl: result.imageUrl || null,
       // Serviços
-      serviceOptions: result.serviceOptions || null,
+      serviceOptions: result.serviceOptions || result.service_options || null,
       // Preço
-      priceLevel: result.priceLevel || null,
+      priceLevel: result.priceLevel || result.price || null,
       // Descrição
-      description: result.description || null
+      description: result.description || result.snippet || null,
+      // Link direto do Google Maps
+      googleMapsUrl: result.googleMapsUrl || result.link || null
     }
   };
 }
