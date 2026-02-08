@@ -1,6 +1,7 @@
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const { Pool } = require('pg');
 const fs = require('fs');
-const path = require('path');
 
 async function initDatabase() {
   const pool = new Pool({
@@ -83,7 +84,7 @@ async function initDatabase() {
     console.log('✅ Banco de dados inicializado com sucesso!');
     await pool.end();
   } catch (error) {
-    console.error('❌ Erro ao inicializar banco:', error.message);
+    console.error('❌ Erro ao inicializar banco:', error);
     await pool.end();
     process.exit(1);
   }

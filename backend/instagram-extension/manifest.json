@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "InstaLead Scout - Evolution API",
+  "version": "1.0",
+  "description": "Extrai contatos do Instagram e valida WhatsApp via Evolution API",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://www.instagram.com/*",
+    "http://localhost:3000/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.instagram.com/*"],
+      "js": ["content.js"]
+    }
+  ]
+}

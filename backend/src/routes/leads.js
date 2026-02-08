@@ -4,6 +4,96 @@ const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Rota especial para extensão (sem auth padrão, pega o primeiro admin)
+router.post('/extension', async (req, res) => {
+  try {
+    const { username, fullName, bio, externalUrl, phones, source, userEmail } = req.body;
+    
+    // Validar usuário via Email (Obrigatório para extensão)
+    if (!userEmail) {
+        return res.status(401).json({ message: 'Email do usuário é obrigatório.' });
+    }
+
+    const userResult = await db.query("SELECT id, plan_id, role FROM users WHERE email = $1", [userEmail]);
+    
+    if (userResult.rows.length === 0) {
+        return res.status(404).json({ message: 'Usuário não encontrado. Verifique seu email.' });
+    }
+
+    const user = userResult.rows[0];
+    const userId = user.id;
+
+    // Verificar se o plano permite uso da extensão (Ex: Bloquear Free)
+    // Opcional: Adicionar flag 'extension_access' no JSON de features do plano
+    if (user.plan_id === 'free' && user.role !== 'superadmin') {
+        return res.status(403).json({ message: 'Seu plano atual não permite uso da extensão. Faça upgrade.' });
+    }
+
+    // Verificar limite de leads antes de prosseguir
+    const canExtract = await checkLimit(userId, 'leads', 1);
+    if (!canExtract) {
+      return res.status(403).json({ 
+        message: 'Limite de leads do plano excedido. Faça upgrade para continuar.' 
+      });
+    }
+
+    const phone = phones && phones.length > 0 ? phones[0] : null;
+    const whatsapp = phone; // Assumindo igual
+
+    // Verificar Duplicidade (Dedup Backend)
+    // Se já existe um lead com este telefone para este usuário, não cobrar e não duplicar.
+    let existingCheck;
+    if (phone) {
+        existingCheck = await db.query(
+            "SELECT id FROM leads WHERE user_id = $1 AND phone = $2",
+            [userId, phone]
+        );
+    } else {
+        // Fallback para verificar por username (company) se não tiver telefone
+        existingCheck = await db.query(
+            "SELECT id FROM leads WHERE user_id = $1 AND company = $2",
+            [userId, fullName || username]
+        );
+    }
+
+    if (existingCheck.rows.length > 0) {
+        // Já existe: Retornar sucesso (para não travar extensão) mas não cobrar/inserir
+        console.log(`[Dedup] Lead duplicado ignorado: ${username} (${phone || 'sem fone'})`);
+        return res.status(200).json({ 
+            status: 'skipped', 
+            message: 'Lead já existe na base.',
+            lead: existingCheck.rows[0]
+        });
+    }
+
+    const result = await db.query(
+      `INSERT INTO leads (user_id, company, website, phone, whatsapp, bio, source, search_term, whatsapp_valid)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [
+        userId, 
+        fullName || username, // company
+        externalUrl,          // website
+        phone,                // phone
+        whatsapp,             // whatsapp
+        bio,                  // bio
+        source || 'Extension', 
+        '@' + username,       // search_term
+        !!phone               // whatsapp_valid
+      ]
+    );
+
+    // Incrementar uso APENAS se inseriu novo lead
+    await incrementUsage(userId, 'leads', 1);
+
+    res.status(201).json(result.rows[0]);
+
+  } catch (error) {
+    console.error('Erro na rota de extensão:', error);
+    res.status(500).json({ message: 'Erro ao processar lead da extensão' });
+  }
+});
+
 // Helper para incrementar uso
 async function incrementUsage(userId, type, count = 1) {
   const month = new Date().toISOString().slice(0, 7);

@@ -45,6 +45,7 @@ export interface Lead {
   whatsappValid: boolean | null;
   source: string;
   searchTerm: string;
+  bio?: string | null;
   createdAt: string;
   serpData?: SerpData;
 }

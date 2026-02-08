@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS leads (
     whatsapp_valid BOOLEAN,
     source VARCHAR(100) DEFAULT 'Google',
     search_term VARCHAR(255),
+    bio TEXT,
     created_at TIMESTAMP DEFAULT NOW()
 );
 

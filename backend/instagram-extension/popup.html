@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0b0f;
+      --card: #121217;
+      --text: #f2f2f2;
+      --primary: #00FFFF; /* Neon Cyan */
+      --secondary: #9933FF; /* Neon Purple */
+      --danger: #ff0055;
+      --border: #2a2a30;
+      --input-bg: #1a1a1f;
+    }
+    
+    body { 
+      width: 340px; 
+      padding: 20px; 
+      font-family: 'Inter', sans-serif; 
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+    }
+
+    /* Header & Logo */
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 15px;
+    }
+    .logo {
+      height: 40px;
+      margin-bottom: 10px;
+    }
+    h3 { 
+      margin: 0; 
+      font-family: 'Orbitron', sans-serif; 
+      color: var(--primary);
+      font-size: 16px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    /* Controls */
+    label {
+      font-size: 12px;
+      color: #888;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    input[type="text"], input[type="password"], input[type="number"], input[type="email"] { 
+      width: 100%; 
+      margin-bottom: 12px; 
+      padding: 10px; 
+      box-sizing: border-box; 
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: white;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 5px rgba(0, 255, 255, 0.2);
+    }
+
+    /* Buttons */
+    button { 
+      width: 100%; 
+      padding: 12px; 
+      border: none; 
+      border-radius: 6px;
+      cursor: pointer; 
+      font-weight: 600; 
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+      transition: all 0.2s;
+      margin-bottom: 10px;
+    }
+    #startBtn {
+      background: var(--primary);
+      color: #000;
+      box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+    }
+    #startBtn:hover {
+      background: #33ffff;
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+    }
+    #stopBtn {
+      background: var(--danger);
+      color: white;
+    }
+    #saveConfig {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: #888;
+    }
+    #saveConfig:hover {
+      border-color: var(--secondary);
+      color: var(--secondary);
+    }
+
+    /* Radio Group */
+    .radio-group {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 20px;
+      background: var(--input-bg);
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    .radio-group label {
+      margin: 0;
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    input[type="radio"] {
+      accent-color: var(--primary);
+    }
+
+    /* Status & Progress */
+    .status { 
+      font-size: 12px; 
+      margin-top: 10px; 
+      color: #888; 
+      text-align: center;
+      min-height: 18px;
+    }
+    
+    #progressContainer {
+      background: var(--card);
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    /* Config Section */
+    .config-section { 
+      border-top: 1px solid var(--border); 
+      padding-top: 15px; 
+      margin-top: 20px; 
+    }
+    .config-title {
+      font-family: 'Orbitron', sans-serif;
+      color: var(--secondary);
+      font-size: 11px;
+      margin-bottom: 10px;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="logo.png" alt="Logo" class="logo">
+    <h3>InstaLead Scout</h3>
+  </div>
+  
+  <div class="radio-group">
+    <label>
+      <input type="radio" name="mode" value="profile" checked> Seguidores
+    </label>
+    <label>
+      <input type="radio" name="mode" value="search"> Pesquisa
+    </label>
+  </div>
+
+  <div id="profileInputGroup">
+    <input type="text" id="targetProfile" placeholder="@perfil_alvo">
+  </div>
+
+  <div id="searchInputGroup" style="display: none;">
+    <input type="text" id="searchTerm" placeholder="Termo (ex: unimed)">
+  </div>
+
+  <button id="startBtn">INICIAR EXTRAÇÃO</button>
+  <button id="stopBtn" style="display: none;">PARAR</button>
+
+  <div class="status" id="status">Pronto para iniciar</div>
+
+  <div id="progressContainer" style="display: none; margin-top: 15px;">
+    <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 5px; color: var(--primary);">
+        <span id="progressText">Extraindo...</span>
+        <span id="progressCount">0/0</span>
+    </div>
+    <div style="width: 100%; height: 6px; background: #222; border-radius: 3px; overflow: hidden;">
+        <div id="progressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); transition: width 0.3s;"></div>
+    </div>
+  </div>
+
+  <div class="config-section">
+    <span class="config-title">CONFIGURAÇÕES</span>
+    <input type="email" id="userEmail" placeholder="Seu Email (Obrigatório)">
+    
+    <div style="display: flex; gap: 10px;">
+        <input type="number" id="maxLeads" placeholder="Max" style="flex: 1;">
+        <input type="number" id="safetyDelay" placeholder="Delay (s)" style="flex: 1;">
+    </div>
+
+    <input type="text" id="backendUrl" value="http://localhost:3000/api/leads/extension" placeholder="Backend URL">
+    
+    <!-- Advanced hidden/collapsed if needed, kept simple for now -->
+    <input type="text" id="evoUrl" placeholder="Evolution API URL (Opcional)" style="display:none">
+    <input type="password" id="evoKey" placeholder="Evolution API Key (Opcional)" style="display:none">
+    
+    <button id="saveConfig">SALVAR PREFERÊNCIAS</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
