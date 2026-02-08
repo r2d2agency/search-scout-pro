@@ -132,9 +132,9 @@ router.post('/', authenticate, async (req, res) => {
     // Incrementar uso do usuário
     await incrementUsage(req.user.id, 'search', 1);
 
-    // Extrair leads dos resultados
-    const organicResults = serpData.organic_results || [];
-    const localResults = serpData.local_results || [];
+    // Extrair leads dos resultados (Serper.dev usa 'organic' e 'places')
+    const organicResults = serpData.organic || [];
+    const localResults = serpData.places || [];
     
     const leads = [];
     
