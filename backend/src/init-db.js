@@ -11,12 +11,44 @@ async function initDatabase() {
   try {
     console.log('🔄 Verificando banco de dados...');
 
+    // PRIMEIRO: Adicionar coluna created_by se não existir (antes do schema)
+    try {
+      await pool.query(`
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS created_by UUID;
+      `);
+      console.log('✅ Coluna created_by verificada');
+    } catch (e) {
+      // Tabela pode não existir ainda, ignorar
+      console.log('ℹ️ Tabela users ainda não existe, será criada pelo schema');
+    }
+
+    // Atualizar constraint de role se necessário (antes do schema)
+    try {
+      await pool.query(`
+        ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+        ALTER TABLE users ADD CONSTRAINT users_role_check 
+          CHECK (role IN ('superadmin', 'admin', 'user'));
+      `);
+      console.log('✅ Constraint de role atualizada');
+    } catch (e) {
+      // Ignorar se tabela não existe
+    }
+
     // Ler e executar o schema (usa IF NOT EXISTS para ser seguro)
     const schemaPath = path.join(__dirname, '..', 'schema.sql');
     const schema = fs.readFileSync(schemaPath, 'utf8');
 
     await pool.query(schema);
     console.log('✅ Schema verificado/atualizado');
+
+    // Criar índice para created_by
+    try {
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_users_created_by ON users(created_by);
+      `);
+    } catch (e) {
+      // Ignorar
+    }
 
     // Verificar se existe um superadmin
     const superadminCheck = await pool.query(
@@ -46,29 +78,6 @@ async function initDatabase() {
       }
     } else {
       console.log('✅ Superadmin já existe');
-    }
-
-    // Atualizar constraint de role se necessário
-    try {
-      await pool.query(`
-        ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
-        ALTER TABLE users ADD CONSTRAINT users_role_check 
-          CHECK (role IN ('superadmin', 'admin', 'user'));
-      `);
-      console.log('✅ Constraint de role atualizada');
-    } catch (e) {
-      // Ignorar se já existe
-    }
-
-    // Adicionar coluna created_by se não existir
-    try {
-      await pool.query(`
-        ALTER TABLE users ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id) ON DELETE SET NULL;
-        CREATE INDEX IF NOT EXISTS idx_users_created_by ON users(created_by);
-      `);
-      console.log('✅ Coluna created_by verificada');
-    } catch (e) {
-      // Ignorar erros
     }
 
     console.log('✅ Banco de dados inicializado com sucesso!');

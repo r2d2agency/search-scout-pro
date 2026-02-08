@@ -100,7 +100,7 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
 router.put('/:id', authenticate, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, role, planId, password } = req.body;
+    const { name, role, planId, password } = req.body;
 
     // Verificar permissão (admin só pode editar usuários que criou)
     if (req.user.role !== 'superadmin') {
@@ -119,18 +119,37 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
       finalRole = 'admin';
     }
 
-    let query = 'UPDATE users SET name = $1, email = $2, role = $3, plan_id = $4, updated_at = NOW()';
-    let params = [name, email, finalRole, planId];
+    // Construir query dinamicamente apenas com campos fornecidos
+    const updates = [];
+    const params = [];
+    let paramIndex = 1;
 
+    if (name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      params.push(name);
+    }
+    if (finalRole !== undefined) {
+      updates.push(`role = $${paramIndex++}`);
+      params.push(finalRole);
+    }
+    if (planId !== undefined) {
+      updates.push(`plan_id = $${paramIndex++}`);
+      params.push(planId);
+    }
     if (password) {
       const passwordHash = await bcrypt.hash(password, 10);
-      query += ', password_hash = $5 WHERE id = $6 RETURNING id, email, name, role, plan_id, created_at';
-      params.push(passwordHash, id);
-    } else {
-      query += ' WHERE id = $5 RETURNING id, email, name, role, plan_id, created_at';
-      params.push(id);
+      updates.push(`password_hash = $${paramIndex++}`);
+      params.push(passwordHash);
     }
 
+    if (updates.length === 0) {
+      return res.status(400).json({ message: 'Nenhum campo para atualizar' });
+    }
+
+    updates.push('updated_at = NOW()');
+    params.push(id);
+
+    const query = `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING id, email, name, role, plan_id, created_at`;
     const result = await db.query(query, params);
 
     if (result.rows.length === 0) {
