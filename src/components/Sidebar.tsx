@@ -135,8 +135,12 @@ export function Sidebar() {
             </ul>
           </>
         )}
-      </nav>
+        </nav>
       
+      {/* Footer signature */}
+      <div className="p-4 border-t border-sidebar-border text-center">
+        <p className="text-xs text-muted-foreground">R2D2 - TNS</p>
+      </div>
     </aside>
   );
 }
