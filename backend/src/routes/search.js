@@ -93,11 +93,36 @@ router.post('/', authenticate, async (req, res) => {
     serpUrl.searchParams.append('api_key', apiKey);
 
     const serpResponse = await fetch(serpUrl.toString());
-    const serpData = await serpResponse.json();
+
+    // SerpApi normalmente responde JSON mesmo em erros, mas vamos tratar com segurança
+    const raw = await serpResponse.text();
+    let serpData;
+    try {
+      serpData = raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      console.error('SERP API retornou resposta não-JSON', {
+        status: serpResponse.status,
+        raw: raw?.slice?.(0, 1000) || raw,
+      });
+      return res.status(502).json({
+        message: 'Erro ao consultar SERP API',
+        details: 'Resposta inválida da SERP API (não-JSON)',
+        status: serpResponse.status,
+      });
+    }
 
     if (!serpResponse.ok) {
-      console.error('Erro SERP API:', serpData);
-      return res.status(500).json({ message: 'Erro ao consultar SERP API' });
+      const details = serpData?.error || serpData?.errors?.[0] || serpData?.message || null;
+      console.error('Erro SERP API:', {
+        status: serpResponse.status,
+        details,
+        serpData,
+      });
+      return res.status(502).json({
+        message: 'Erro ao consultar SERP API',
+        details,
+        status: serpResponse.status,
+      });
     }
 
     // Incrementar uso do usuário
