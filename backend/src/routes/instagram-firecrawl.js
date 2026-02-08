@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../config/database');
 const { authenticate } = require('../middleware/auth');
+const firecrawlKeysRouter = require('./firecrawl-keys');
 
 const router = express.Router();
 
@@ -60,12 +61,16 @@ router.post('/search', authenticate, async (req, res) => {
       return res.status(403).json({ message: 'Limite de pesquisas atingido para este mês' });
     }
 
-    const apiKey = process.env.FIRECRAWL_API_KEY;
+    // Obter chave via rotação (usuário > global > env)
+    const { key: apiKey, source: keySource } = await firecrawlKeysRouter.getNextAvailableKey(req.user.id);
+    
     if (!apiKey) {
       return res.status(503).json({ 
-        message: 'Firecrawl API não configurada. Configure FIRECRAWL_API_KEY nas variáveis de ambiente.' 
+        message: 'Nenhuma chave Firecrawl disponível. Configure uma chave no painel de administração ou nas configurações do usuário.' 
       });
     }
+
+    console.log(`Usando chave Firecrawl de: ${keySource}`);
 
     const cleanQuery = query.replace('@', '').replace('#', '').trim();
     console.log('Iniciando busca Instagram via Firecrawl:', { query: cleanQuery, limit });
@@ -149,12 +154,16 @@ router.post('/profile', authenticate, async (req, res) => {
       return res.status(400).json({ message: 'Username é obrigatório' });
     }
 
-    const apiKey = process.env.FIRECRAWL_API_KEY;
+    // Obter chave via rotação
+    const { key: apiKey, source: keySource } = await firecrawlKeysRouter.getNextAvailableKey();
+    
     if (!apiKey) {
       return res.status(503).json({ 
-        message: 'Firecrawl API não configurada.' 
+        message: 'Nenhuma chave Firecrawl disponível.' 
       });
     }
+
+    console.log(`Perfil: Usando chave Firecrawl de: ${keySource}`);
 
     const cleanUsername = username.replace('@', '').trim();
     console.log('Buscando perfil Instagram via Firecrawl:', cleanUsername);
