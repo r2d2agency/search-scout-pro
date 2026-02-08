@@ -154,6 +154,22 @@ CREATE TABLE IF NOT EXISTS serp_api_keys (
 CREATE INDEX idx_serp_keys_active ON serp_api_keys(is_active, usage_count);
 
 -- =====================================================
+-- TABELA: apify_api_keys (chaves Apify para rotação)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS apify_api_keys (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL,
+    api_key VARCHAR(255) NOT NULL,
+    is_active BOOLEAN DEFAULT true,
+    usage_count INT DEFAULT 0,
+    monthly_limit INT DEFAULT 100,
+    last_used_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_apify_keys_active ON apify_api_keys(is_active, usage_count);
+
+-- =====================================================
 -- TABELA: user_api_keys (chaves de API por usuário)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS user_api_keys (

@@ -1,28 +1,13 @@
 const express = require('express');
 const db = require('../config/database');
 const { authenticate } = require('../middleware/auth');
+const apifyKeysRouter = require('./apify-keys');
 
 const router = express.Router();
 
-// Helper para obter chave Apify (usuário > global)
+// Helper para obter chave Apify (usando rotação de chaves globais)
 async function getApifyKey(userId) {
-  // 1. Tentar chave do usuário
-  const userKeyResult = await db.query(
-    `SELECT api_key FROM user_api_keys 
-     WHERE user_id = $1 AND key_type = 'apify' AND is_active = true`,
-    [userId]
-  );
-  
-  if (userKeyResult.rows.length > 0 && userKeyResult.rows[0].api_key) {
-    return { key: userKeyResult.rows[0].api_key, source: 'user' };
-  }
-
-  // 2. Fallback para chave global (variável de ambiente)
-  if (process.env.APIFY_API_KEY) {
-    return { key: process.env.APIFY_API_KEY, source: 'global' };
-  }
-
-  return { key: null, source: null };
+  return apifyKeysRouter.getNextAvailableKey(userId);
 }
 
 // Helper para verificar limite
