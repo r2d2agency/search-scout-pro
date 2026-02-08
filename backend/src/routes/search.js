@@ -82,45 +82,48 @@ router.post('/', authenticate, async (req, res) => {
       });
     }
 
-    // Fazer requisição à SERP API
-    const serpUrl = new URL('https://serpapi.com/search.json');
-    serpUrl.searchParams.append('q', query);
-    serpUrl.searchParams.append('location', 'Brazil');
-    serpUrl.searchParams.append('google_domain', 'google.com.br');
-    serpUrl.searchParams.append('gl', 'br');
-    serpUrl.searchParams.append('hl', 'pt-br');
-    serpUrl.searchParams.append('num', '20');
-    serpUrl.searchParams.append('start', String((page - 1) * 20));
-    serpUrl.searchParams.append('api_key', apiKey);
+    // Fazer requisição à Serper.dev API
+    const serpResponse = await fetch('https://google.serper.dev/search', {
+      method: 'POST',
+      headers: {
+        'X-API-KEY': apiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        q: query,
+        gl: 'br',
+        hl: 'pt-br',
+        num: 20,
+        page: page
+      })
+    });
 
-    const serpResponse = await fetch(serpUrl.toString());
-
-    // SerpApi normalmente responde JSON mesmo em erros, mas vamos tratar com segurança
+    // Tratar resposta
     const raw = await serpResponse.text();
     let serpData;
     try {
       serpData = raw ? JSON.parse(raw) : {};
     } catch (e) {
-      console.error('SERP API retornou resposta não-JSON', {
+      console.error('Serper API retornou resposta não-JSON', {
         status: serpResponse.status,
         raw: raw?.slice?.(0, 1000) || raw,
       });
       return res.status(502).json({
-        message: 'Erro ao consultar SERP API',
-        details: 'Resposta inválida da SERP API (não-JSON)',
+        message: 'Erro ao consultar Serper API',
+        details: 'Resposta inválida da Serper API (não-JSON)',
         status: serpResponse.status,
       });
     }
 
     if (!serpResponse.ok) {
-      const details = serpData?.error || serpData?.errors?.[0] || serpData?.message || null;
-      console.error('Erro SERP API:', {
+      const details = serpData?.message || serpData?.error || null;
+      console.error('Erro Serper API:', {
         status: serpResponse.status,
         details,
         serpData,
       });
       return res.status(502).json({
-        message: 'Erro ao consultar SERP API',
+        message: 'Erro ao consultar Serper API',
         details,
         status: serpResponse.status,
       });
@@ -147,21 +150,21 @@ router.post('/', authenticate, async (req, res) => {
       if (lead) leads.push(lead);
     }
 
-    // Informações de paginação
+    // Informações de paginação (Serper.dev format)
     const pagination = {
       currentPage: page,
-      totalResults: serpData.search_information?.total_results || leads.length,
-      hasMore: organicResults.length >= 20 || (serpData.serpapi_pagination?.next_link ? true : false),
-      nextPageToken: serpData.serpapi_pagination?.next_link || null
+      totalResults: serpData.searchParameters?.num || leads.length,
+      hasMore: organicResults.length >= 20,
+      nextPageToken: null
     };
 
     res.json({
       leads,
       pagination,
       searchMetadata: {
-        searchId: serpData.search_metadata?.id,
-        totalResults: serpData.search_information?.total_results,
-        timeTaken: serpData.search_information?.time_taken_displayed
+        searchId: null,
+        totalResults: leads.length,
+        timeTaken: serpData.searchParameters?.timeTaken || null
       }
     });
 
