@@ -6,10 +6,18 @@ import {
   CheckCircle2, 
   Loader2,
   LayoutGrid,
-  Table2
+  Table2,
+  FileJson,
+  FileSpreadsheet
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Lead } from '@/types/lead';
-import { exportToCSV } from '@/lib/api';
+import { exportToCSV, exportToJSON } from '@/lib/api';
 
 interface ActionBarProps {
   leads: Lead[];
@@ -71,15 +79,28 @@ export function ActionBar({
         </Button>
       )}
 
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => exportToCSV(leads)}
-        disabled={leads.length === 0}
-      >
-        <Download className="mr-2 h-4 w-4" />
-        Exportar CSV
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={leads.length === 0}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Exportar
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => exportToCSV(leads)}>
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            Exportar CSV
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => exportToJSON(leads)}>
+            <FileJson className="mr-2 h-4 w-4" />
+            Exportar JSON (completo)
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <Button
         variant="outline"

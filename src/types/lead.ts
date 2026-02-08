@@ -1,3 +1,40 @@
+export interface SerpDataOrganic {
+  type: 'organic';
+  position?: number;
+  snippet?: string | null;
+  displayedLink?: string | null;
+  favicon?: string | null;
+  thumbnail?: string | null;
+  sitelinks?: any | null;
+  richSnippet?: any | null;
+  aboutThisResult?: any | null;
+  cachedPageLink?: string | null;
+  relatedPagesLink?: string | null;
+}
+
+export interface SerpDataLocal {
+  type: 'local';
+  position?: number;
+  placeId?: string | null;
+  dataId?: string | null;
+  dataCid?: string | null;
+  address?: string | null;
+  rating?: number | null;
+  reviews?: number | null;
+  reviewsOriginal?: string | null;
+  priceLevel?: string | null;
+  businessType?: string | null;
+  types?: string[] | null;
+  thumbnail?: string | null;
+  serviceOptions?: any | null;
+  hours?: string | null;
+  operatingHours?: any | null;
+  gpsCoordinates?: { latitude: number; longitude: number } | null;
+  description?: string | null;
+}
+
+export type SerpData = SerpDataOrganic | SerpDataLocal;
+
 export interface Lead {
   id: string;
   company: string;
@@ -9,6 +46,7 @@ export interface Lead {
   source: string;
   searchTerm: string;
   createdAt: string;
+  serpData?: SerpData;
 }
 
 export interface SearchResult {

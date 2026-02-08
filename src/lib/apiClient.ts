@@ -219,3 +219,26 @@ export const serpKeysApi = {
     return apiRequest<void>('/serp-keys/reset-usage', { method: 'POST' });
   },
 };
+
+// API Search (usa chaves SERP globais)
+export const searchApi = {
+  async search(query: string, page = 1) {
+    return apiRequest<{
+      leads: any[];
+      pagination: {
+        currentPage: number;
+        totalResults: number;
+        hasMore: boolean;
+        nextPageToken?: string;
+      };
+      searchMetadata: {
+        searchId?: string;
+        totalResults?: number;
+        timeTaken?: string;
+      };
+    }>('/search', {
+      method: 'POST',
+      body: JSON.stringify({ query, page }),
+    });
+  },
+};
