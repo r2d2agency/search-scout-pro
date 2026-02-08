@@ -935,9 +935,23 @@ const SearchPage = () => {
                       )}
 
                       {/* Dados de contato extraídos da bio */}
-                      {isInstagram && (lead.phone || lead.email || lead.website) && (
+                      {isInstagram && (lead.phone || lead.email || lead.website || lead.whatsapp) && (
                         <div className="flex flex-wrap gap-2 mt-1">
-                          {lead.phone && (
+                          {/* WhatsApp confirmado (de link wa.me) */}
+                          {lead.whatsapp && (
+                            <a 
+                              href={`https://wa.me/${lead.whatsapp}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-success/20 text-success rounded text-xs hover:bg-success/30 font-medium"
+                            >
+                              <MessageCircle className="h-3 w-3" />
+                              {lead.whatsappValid ? '✓ WhatsApp' : 'WhatsApp'}
+                              <span className="opacity-75">{lead.whatsapp}</span>
+                            </a>
+                          )}
+                          {/* Telefone (diferente do WhatsApp) */}
+                          {lead.phone && lead.phone !== lead.whatsapp && (
                             <a 
                               href={`tel:${lead.phone}`}
                               className="inline-flex items-center gap-1 px-2 py-1 bg-muted rounded text-xs hover:bg-muted/80"
@@ -966,6 +980,29 @@ const SearchPage = () => {
                               Site
                             </a>
                           )}
+                        </div>
+                      )}
+                      
+                      {/* Links extras extraídos */}
+                      {isInstagram && serpData.extractedLinks && serpData.extractedLinks.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {serpData.extractedLinks.slice(0, 3).map((link: any, idx: number) => (
+                            <a
+                              key={idx}
+                              href={link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 bg-muted/50 rounded text-xs hover:bg-muted text-muted-foreground"
+                            >
+                              <ExternalLink className="h-2.5 w-2.5" />
+                              {link.type === 'whatsapp' ? 'WhatsApp' :
+                               link.type === 'linktree' ? 'Linktree' :
+                               link.type === 'youtube' ? 'YouTube' :
+                               link.type === 'tiktok' ? 'TikTok' :
+                               link.type === 'facebook' ? 'Facebook' :
+                               'Link'}
+                            </a>
+                          ))}
                         </div>
                       )}
 
