@@ -7,7 +7,6 @@ import {
   Users,
   CreditCard,
   DollarSign,
-  Sparkles,
   Key,
   Cog,
   Instagram
@@ -15,6 +14,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBrand } from '@/hooks/useBrand';
+import defaultLogo from '@/assets/logo.png';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -44,27 +44,13 @@ export function Sidebar() {
       {/* Neon gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-neon-cyan/5 via-transparent to-neon-purple/5 pointer-events-none" />
       <div className="p-4 border-b border-sidebar-border relative z-10">
-        {brand.logoUrl ? (
-          <div className="w-full h-12 flex items-center justify-center">
-            <img 
-              src={brand.logoUrl} 
-              alt="Logo" 
-              className="max-h-12 max-w-full object-contain"
-            />
-          </div>
-        ) : (
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary neon-glow-cyan">
-              <Sparkles className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="font-bold text-lg text-primary neon-text-cyan logo-text tracking-wider">
-                {brand.appName}
-              </h1>
-              <p className="text-xs text-muted-foreground">{brand.appSubtitle}</p>
-            </div>
-          </div>
-        )}
+        <div className="w-full flex items-center justify-center">
+          <img 
+            src={brand.logoUrl || defaultLogo} 
+            alt="Logo" 
+            className="max-h-12 max-w-full object-contain"
+          />
+        </div>
       </div>
       
       <nav className="flex-1 p-4 overflow-y-auto">
