@@ -76,6 +76,12 @@ CREATE TABLE leads (
     whatsapp_valid BOOLEAN,
     source VARCHAR(100) DEFAULT 'Google',
     search_term VARCHAR(255),
+    -- Dados extras do Google Meu Negócio
+    address TEXT,
+    rating DECIMAL(2,1),
+    rating_count INT,
+    category VARCHAR(255),
+    serp_data JSONB DEFAULT '{}',
     created_at TIMESTAMP DEFAULT NOW()
 );
 

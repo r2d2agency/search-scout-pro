@@ -1,13 +1,17 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Lead } from '@/types/lead';
 import { LeadsTable } from '@/components/LeadsTable';
 import { LeadsFilters, LeadsFiltersState, WhatsAppStatusFilter } from '@/components/LeadsFilters';
 import { Button } from '@/components/ui/button';
-import { exportToCSV } from '@/lib/api';
+import { exportToXLSX } from '@/lib/api';
 import { leadsApi } from '@/lib/apiClient';
-import { Download, Trash2, RefreshCw, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Download, Trash2, RefreshCw, ChevronLeft, ChevronRight, Loader2, Map, Table } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+// Lazy load do mapa para melhor performance
+const LeadsMap = lazy(() => import('@/components/LeadsMap').then(m => ({ default: m.LeadsMap })));
 
 const LEADS_PER_PAGE = 30;
 
@@ -199,11 +203,11 @@ const SavedLeadsPage = () => {
 
           <Button 
             variant="outline" 
-            onClick={() => exportToCSV(filteredLeads)}
+            onClick={() => exportToXLSX(filteredLeads)}
             disabled={filteredLeads.length === 0}
           >
             <Download className="mr-2 h-4 w-4" />
-            Exportar CSV
+            Exportar XLSX
           </Button>
 
           <Button 
@@ -228,15 +232,38 @@ const SavedLeadsPage = () => {
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : filteredLeads.length > 0 ? (
-        <>
-          <LeadsTable 
-            leads={filteredLeads} 
-            onVerifyWhatsApp={() => {}}
-            onDelete={handleDeleteLead}
-          />
+        <Tabs defaultValue="table" className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="table" className="flex items-center gap-2">
+              <Table className="h-4 w-4" />
+              Tabela
+            </TabsTrigger>
+            <TabsTrigger value="map" className="flex items-center gap-2">
+              <Map className="h-4 w-4" />
+              Mapa
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="table">
+            <LeadsTable 
+              leads={filteredLeads} 
+              onVerifyWhatsApp={() => {}}
+              onDelete={handleDeleteLead}
+            />
+          </TabsContent>
+
+          <TabsContent value="map">
+            <Suspense fallback={
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            }>
+              <LeadsMap leads={filteredLeads} />
+            </Suspense>
+          </TabsContent>
           
           {/* Paginação */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mt-4">
             <p className="text-sm text-muted-foreground">
               Exibindo {(currentPage - 1) * LEADS_PER_PAGE + 1}-
               {Math.min(currentPage * LEADS_PER_PAGE, totalLeads)} de {totalLeads} leads
@@ -269,7 +296,7 @@ const SavedLeadsPage = () => {
               </Button>
             </div>
           </div>
-        </>
+        </Tabs>
       ) : (
         <div className="text-center py-12">
           <p className="text-muted-foreground">

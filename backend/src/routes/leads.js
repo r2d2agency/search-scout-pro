@@ -81,6 +81,11 @@ router.get('/', authenticate, async (req, res) => {
       whatsappValid: row.whatsapp_valid,
       source: row.source,
       searchTerm: row.search_term,
+      address: row.address,
+      rating: row.rating,
+      ratingCount: row.rating_count,
+      category: row.category,
+      serpData: row.serp_data || {},
       createdAt: row.created_at
     }));
 
@@ -102,13 +107,13 @@ router.post('/', authenticate, async (req, res) => {
       return res.status(403).json({ message: 'Limite de leads atingido para este mês' });
     }
 
-    const { company, website, phone, whatsapp, email, whatsappValid, source, searchTerm } = req.body;
+    const { company, website, phone, whatsapp, email, whatsappValid, source, searchTerm, address, rating, ratingCount, category, serpData } = req.body;
 
     const result = await db.query(
-      `INSERT INTO leads (user_id, company, website, phone, whatsapp, email, whatsapp_valid, source, search_term)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO leads (user_id, company, website, phone, whatsapp, email, whatsapp_valid, source, search_term, address, rating, rating_count, category, serp_data)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING *`,
-      [req.user.id, company, website, phone, whatsapp, email, whatsappValid, source, searchTerm]
+      [req.user.id, company, website, phone, whatsapp, email, whatsappValid, source, searchTerm, address, rating, ratingCount, category, JSON.stringify(serpData || {})]
     );
 
     await incrementUsage(req.user.id, 'leads', 1);
@@ -124,6 +129,11 @@ router.post('/', authenticate, async (req, res) => {
       whatsappValid: lead.whatsapp_valid,
       source: lead.source,
       searchTerm: lead.search_term,
+      address: lead.address,
+      rating: lead.rating,
+      ratingCount: lead.rating_count,
+      category: lead.category,
+      serpData: lead.serp_data || {},
       createdAt: lead.created_at
     });
   } catch (error) {
@@ -146,11 +156,12 @@ router.post('/bulk', authenticate, async (req, res) => {
     const savedLeads = [];
     for (const lead of leads) {
       const result = await db.query(
-        `INSERT INTO leads (user_id, company, website, phone, whatsapp, email, whatsapp_valid, source, search_term)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `INSERT INTO leads (user_id, company, website, phone, whatsapp, email, whatsapp_valid, source, search_term, address, rating, rating_count, category, serp_data)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
          RETURNING *`,
         [req.user.id, lead.company, lead.website, lead.phone, lead.whatsapp, 
-         lead.email, lead.whatsappValid, lead.source, lead.searchTerm]
+         lead.email, lead.whatsappValid, lead.source, lead.searchTerm,
+         lead.address, lead.rating, lead.ratingCount, lead.category, JSON.stringify(lead.serpData || {})]
       );
       savedLeads.push(result.rows[0]);
     }
@@ -167,6 +178,11 @@ router.post('/bulk', authenticate, async (req, res) => {
       whatsappValid: lead.whatsapp_valid,
       source: lead.source,
       searchTerm: lead.search_term,
+      address: lead.address,
+      rating: lead.rating,
+      ratingCount: lead.rating_count,
+      category: lead.category,
+      serpData: lead.serp_data || {},
       createdAt: lead.created_at
     })));
   } catch (error) {
