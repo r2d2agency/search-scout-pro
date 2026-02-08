@@ -120,6 +120,22 @@ CREATE TABLE IF NOT EXISTS serp_api_keys (
 CREATE INDEX IF NOT EXISTS idx_serp_api_keys_active ON serp_api_keys(is_active);
 
 -- =====================================================
+-- TABELA: user_api_keys (chaves de API por usuário)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS user_api_keys (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    key_type VARCHAR(50) NOT NULL, -- 'apify', 'serp', etc.
+    api_key VARCHAR(500) NOT NULL,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(user_id, key_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_api_keys_user_type ON user_api_keys(user_id, key_type);
+
+-- =====================================================
 -- TABELA: sessions (sessões de autenticação)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS sessions (

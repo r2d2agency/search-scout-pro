@@ -208,6 +208,23 @@ export const settingsApi = {
       body: JSON.stringify(brand),
     });
   },
+
+  // Chaves de API do usuário
+  async getApiKeys() {
+    return apiRequest<Record<string, {
+      hasKey: boolean;
+      maskedKey: string;
+      isActive: boolean;
+      updatedAt: string;
+    }>>('/settings/api-keys');
+  },
+
+  async saveApiKey(keyType: string, apiKey: string) {
+    return apiRequest<{ message: string }>(`/settings/api-keys/${keyType}`, {
+      method: 'PUT',
+      body: JSON.stringify({ apiKey }),
+    });
+  },
 };
 
 // API SERP Keys

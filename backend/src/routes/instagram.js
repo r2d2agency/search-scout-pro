@@ -4,6 +4,27 @@ const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Helper para obter chave Apify (usuário > global)
+async function getApifyKey(userId) {
+  // 1. Tentar chave do usuário
+  const userKeyResult = await db.query(
+    `SELECT api_key FROM user_api_keys 
+     WHERE user_id = $1 AND key_type = 'apify' AND is_active = true`,
+    [userId]
+  );
+  
+  if (userKeyResult.rows.length > 0 && userKeyResult.rows[0].api_key) {
+    return { key: userKeyResult.rows[0].api_key, source: 'user' };
+  }
+
+  // 2. Fallback para chave global (variável de ambiente)
+  if (process.env.APIFY_API_KEY) {
+    return { key: process.env.APIFY_API_KEY, source: 'global' };
+  }
+
+  return { key: null, source: null };
+}
+
 // Helper para verificar limite
 async function checkLimit(userId, type, count = 1) {
   const month = new Date().toISOString().slice(0, 7);
@@ -54,7 +75,7 @@ router.post('/suggestions', authenticate, async (req, res) => {
       return res.json({ suggestions: [] });
     }
 
-    const apiKey = process.env.APIFY_API_KEY;
+    const { key: apiKey } = await getApifyKey(req.user.id);
     if (!apiKey) {
       return res.json({ suggestions: [] });
     }
@@ -120,14 +141,14 @@ router.post('/search', authenticate, async (req, res) => {
       return res.status(403).json({ message: 'Limite de pesquisas atingido para este mês' });
     }
 
-    const apiKey = process.env.APIFY_API_KEY;
+    const { key: apiKey, source } = await getApifyKey(req.user.id);
     if (!apiKey) {
       return res.status(503).json({ 
-        message: 'API Key do Apify não configurada. Configure APIFY_API_KEY nas variáveis de ambiente.' 
+        message: 'Nenhuma chave Apify configurada. Configure sua chave em Configurações > API Keys ou contate o administrador.' 
       });
     }
 
-    console.log('Iniciando busca Instagram via Apify:', { query, limit });
+    console.log(`Iniciando busca Instagram via Apify (chave: ${source}):`, { query, limit });
 
     const cleanQuery = query.replace('@', '').replace('#', '').trim();
     const isHashtag = query.startsWith('#');
@@ -204,15 +225,15 @@ router.post('/profile', authenticate, async (req, res) => {
       return res.status(400).json({ message: 'Username é obrigatório' });
     }
 
-    const apiKey = process.env.APIFY_API_KEY;
+    const { key: apiKey, source } = await getApifyKey(req.user.id);
     if (!apiKey) {
       return res.status(503).json({ 
-        message: 'API Key do Apify não configurada' 
+        message: 'Nenhuma chave Apify configurada. Configure sua chave em Configurações > API Keys.' 
       });
     }
 
     const cleanUsername = username.replace('@', '').trim();
-    console.log('Buscando perfil Instagram:', cleanUsername);
+    console.log(`Buscando perfil Instagram (chave: ${source}):`, cleanUsername);
 
     const runResponse = await fetch(
       `https://api.apify.com/v2/acts/apify~instagram-scraper/run-sync-get-dataset-items?token=${apiKey}`,
