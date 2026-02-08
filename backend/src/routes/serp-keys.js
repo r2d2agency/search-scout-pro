@@ -126,28 +126,35 @@ router.post('/reset-usage', authenticate, requireSuperAdmin, async (req, res) =>
 
 // Função interna para obter próxima chave disponível (round-robin com menor uso)
 async function getNextAvailableKey() {
-  const result = await db.query(`
-    SELECT id, api_key 
-    FROM serp_api_keys 
-    WHERE is_active = true AND usage_count < monthly_limit
-    ORDER BY usage_count ASC, last_used_at ASC NULLS FIRST
-    LIMIT 1
-  `);
+  try {
+    const result = await db.query(`
+      SELECT id, api_key 
+      FROM serp_api_keys 
+      WHERE is_active = true AND usage_count < monthly_limit
+      ORDER BY usage_count ASC, last_used_at ASC NULLS FIRST
+      LIMIT 1
+    `);
 
-  if (result.rows.length === 0) {
+    if (result.rows.length === 0) {
+      console.log('Nenhuma chave SERP disponível');
+      return null;
+    }
+
+    const key = result.rows[0];
+
+    // Incrementar uso
+    await db.query(
+      'UPDATE serp_api_keys SET usage_count = usage_count + 1, last_used_at = NOW() WHERE id = $1',
+      [key.id]
+    );
+
+    return key.api_key;
+  } catch (error) {
+    console.error('Erro ao obter chave SERP:', error);
     return null;
   }
-
-  const key = result.rows[0];
-
-  // Incrementar uso
-  await db.query(
-    'UPDATE serp_api_keys SET usage_count = usage_count + 1, last_used_at = NOW() WHERE id = $1',
-    [key.id]
-  );
-
-  return key.api_key;
 }
 
+// Exportar router e função
+router.getNextAvailableKey = getNextAvailableKey;
 module.exports = router;
-module.exports.getNextAvailableKey = getNextAvailableKey;
