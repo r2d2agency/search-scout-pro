@@ -108,6 +108,24 @@ export const usersApi = {
   async getUsage(id: string) {
     return apiRequest<any>(`/users/${id}/usage`);
   },
+
+  async getGlobalStats() {
+    return apiRequest<{
+      month: string;
+      users: { total: number; byRole: Record<string, number> };
+      usage: { totalSearches: number; totalLeads: number; totalWhatsapp: number };
+      serpKeys: { total: number; active: number; usage: number; limit: number };
+      topUsers: Array<{
+        id: string;
+        name: string;
+        email: string;
+        planId: string;
+        planName: string;
+        usage: { searches: number; leads: number; whatsapp: number };
+        limits: { searches: number; leads: number; whatsapp: number };
+      }>;
+    }>('/users/stats/global');
+  },
 };
 
 // API Plans
