@@ -1,7 +1,8 @@
 const express = require('express');
 const db = require('../config/database');
 const { authenticate } = require('../middleware/auth');
-const { getNextAvailableKey } = require('./serp-keys');
+const serpKeysRouter = require('./serp-keys');
+const getNextAvailableKey = serpKeysRouter.getNextAvailableKey;
 
 const router = express.Router();
 
