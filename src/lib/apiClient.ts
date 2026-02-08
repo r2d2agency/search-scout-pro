@@ -261,3 +261,47 @@ export const searchApi = {
     });
   },
 };
+
+// API Saved Searches (pesquisas salvas)
+export const savedSearchesApi = {
+  async list() {
+    return apiRequest<Array<{
+      id: string;
+      name: string;
+      query: string;
+      results_count: number;
+      created_at: string;
+      updated_at: string;
+    }>>('/saved-searches');
+  },
+
+  async get(id: string) {
+    return apiRequest<{
+      id: string;
+      name: string;
+      query: string;
+      results_count: number;
+      leads: any[];
+      created_at: string;
+      updated_at: string;
+    }>(`/saved-searches/${id}`);
+  },
+
+  async save(data: { name: string; query: string; leads: any[] }) {
+    return apiRequest<any>('/saved-searches', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: string, data: { name?: string; leads?: any[] }) {
+    return apiRequest<any>(`/saved-searches/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async delete(id: string) {
+    return apiRequest<void>(`/saved-searches/${id}`, { method: 'DELETE' });
+  },
+};

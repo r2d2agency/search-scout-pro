@@ -135,8 +135,20 @@ router.post('/', authenticate, async (req, res) => {
     // Incrementar uso do usuário
     await incrementUsage(req.user.id, 'search', 1);
 
+    // Log detalhado da resposta
+    console.log('Serper Places Response:', {
+      totalPlaces: serpData.places?.length || 0,
+      searchParameters: serpData.searchParameters,
+      credits: serpData.credits,
+    });
+
     // Extrair leads dos resultados Places (Google Meu Negócio)
     const placesResults = serpData.places || [];
+    
+    console.log('Places encontrados:', placesResults.length);
+    if (placesResults.length > 0) {
+      console.log('Exemplo de place:', JSON.stringify(placesResults[0], null, 2));
+    }
     
     const leads = [];
     

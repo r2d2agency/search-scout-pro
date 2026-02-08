@@ -33,7 +33,10 @@ import {
   Save,
   FileSpreadsheet,
   FileJson,
-  PhoneOff
+  PhoneOff,
+  FolderOpen,
+  Clock,
+  BookmarkPlus
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -43,9 +46,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from '@/hooks/use-toast';
-import { searchApi, leadsApi } from '@/lib/apiClient';
-import { exportToCSV, exportToJSON } from '@/lib/api';
+import { searchApi, leadsApi, savedSearchesApi } from '@/lib/apiClient';
+import { exportToXLSX, exportToCSV, exportToJSON } from '@/lib/api';
 import { Lead } from '@/types/lead';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 const SearchPage = () => {
   const { isAuthenticated } = useAuth();
@@ -69,6 +79,13 @@ const SearchPage = () => {
   // Modal de detalhes
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+
+  // Pesquisas salvas
+  const [savedSearches, setSavedSearches] = useState<any[]>([]);
+  const [loadingSaved, setLoadingSaved] = useState(false);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [searchName, setSearchName] = useState('');
+  const [savingSearch, setSavingSearch] = useState(false);
 
   const handleSearch = useCallback(async (page: number = 1) => {
     if (!query.trim()) return;
@@ -217,13 +234,15 @@ const SearchPage = () => {
   };
 
   // Ações de Exportar
-  const exportLeads = (leadsToExport: Lead[], format: 'csv' | 'json') => {
+  const exportLeads = (leadsToExport: Lead[], format: 'xlsx' | 'csv' | 'json') => {
     if (leadsToExport.length === 0) {
       toast({ title: 'Nenhum lead para exportar' });
       return;
     }
     
-    if (format === 'csv') {
+    if (format === 'xlsx') {
+      exportToXLSX(leadsToExport);
+    } else if (format === 'csv') {
       exportToCSV(leadsToExport);
     } else {
       exportToJSON(leadsToExport);
@@ -231,8 +250,95 @@ const SearchPage = () => {
     
     toast({
       title: 'Exportação concluída',
-      description: `${leadsToExport.length} leads exportados`,
+      description: `${leadsToExport.length} leads exportados em ${format.toUpperCase()}`,
     });
+  };
+
+  // Carregar pesquisas salvas
+  const loadSavedSearches = async () => {
+    if (!isAuthenticated) return;
+    setLoadingSaved(true);
+    try {
+      const searches = await savedSearchesApi.list();
+      setSavedSearches(searches);
+    } catch (error) {
+      console.error('Erro ao carregar pesquisas salvas:', error);
+    } finally {
+      setLoadingSaved(false);
+    }
+  };
+
+  // Salvar pesquisa atual
+  const handleSaveSearch = async () => {
+    if (!searchName.trim() || leads.length === 0) {
+      toast({ title: 'Informe um nome e tenha resultados para salvar' });
+      return;
+    }
+    
+    setSavingSearch(true);
+    try {
+      await savedSearchesApi.save({
+        name: searchName,
+        query,
+        leads,
+      });
+      toast({
+        title: 'Pesquisa salva',
+        description: `"${searchName}" salva com ${leads.length} leads`,
+      });
+      setSaveDialogOpen(false);
+      setSearchName('');
+      loadSavedSearches();
+    } catch (error) {
+      toast({
+        title: 'Erro ao salvar',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingSearch(false);
+    }
+  };
+
+  // Carregar pesquisa salva
+  const loadSavedSearch = async (id: string) => {
+    setIsLoading(true);
+    try {
+      const search = await savedSearchesApi.get(id);
+      setQuery(search.query);
+      setLeads(search.leads || []);
+      setTotalResults(search.results_count);
+      setCurrentPage(1);
+      setHasMore(false);
+      setSelectedIds(new Set());
+      toast({
+        title: 'Pesquisa carregada',
+        description: `"${search.name}" com ${search.results_count} leads`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro ao carregar',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Deletar pesquisa salva
+  const deleteSavedSearch = async (id: string) => {
+    try {
+      await savedSearchesApi.delete(id);
+      toast({ title: 'Pesquisa removida' });
+      loadSavedSearches();
+    } catch (error) {
+      toast({
+        title: 'Erro ao remover',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    }
   };
 
   const filteredLeads = getFilteredLeads();
@@ -267,6 +373,59 @@ const SearchPage = () => {
             </>
           )}
         </Button>
+        
+        {/* Pesquisas Salvas */}
+        {isAuthenticated && (
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="h-12" onClick={loadSavedSearches}>
+                <FolderOpen className="h-5 w-5 mr-2" />
+                Pesquisas Salvas
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Pesquisas Salvas</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {loadingSaved ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  </div>
+                ) : savedSearches.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">
+                    Nenhuma pesquisa salva
+                  </p>
+                ) : (
+                  savedSearches.map((search) => (
+                    <div
+                      key={search.id}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50"
+                    >
+                      <div className="flex-1 cursor-pointer" onClick={() => loadSavedSearch(search.id)}>
+                        <p className="font-medium">{search.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {search.query} • {search.results_count} leads
+                        </p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                          <Clock className="h-3 w-3" />
+                          {new Date(search.created_at).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => deleteSavedSearch(search.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {/* Dica */}
@@ -410,12 +569,55 @@ const SearchPage = () => {
 
           {/* Ações de Salvar e Exportar */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Salvar */}
+            {/* Salvar Pesquisa (para reutilizar) */}
+            {isAuthenticated && (
+              <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="secondary">
+                    <BookmarkPlus className="h-4 w-4 mr-1" />
+                    Salvar Pesquisa
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Salvar Pesquisa</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium">Nome da pesquisa</label>
+                      <Input
+                        value={searchName}
+                        onChange={(e) => setSearchName(e.target.value)}
+                        placeholder="Ex: Clínicas em São Paulo"
+                        className="mt-1"
+                      />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Termo: <strong>{query}</strong> • {leads.length} leads
+                    </p>
+                    <Button
+                      onClick={handleSaveSearch}
+                      disabled={savingSearch || !searchName.trim()}
+                      className="w-full"
+                    >
+                      {savingSearch ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      Salvar
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+
+            {/* Salvar Leads no Banco */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button size="sm">
                   <Save className="h-4 w-4 mr-1" />
-                  Salvar
+                  Salvar Leads
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
@@ -442,32 +644,32 @@ const SearchPage = () => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Exportar CSV */}
+            {/* Exportar XLSX (Principal) */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">
                   <FileSpreadsheet className="h-4 w-4 mr-1" />
-                  CSV
+                  XLSX
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={() => exportLeads(leads, 'csv')}>
+                <DropdownMenuItem onClick={() => exportLeads(leads, 'xlsx')}>
                   <CheckSquare className="h-4 w-4 mr-2" />
                   Exportar Tudo ({leads.length})
                 </DropdownMenuItem>
                 <DropdownMenuItem 
-                  onClick={() => exportLeads(leads.filter(l => selectedIds.has(l.id)), 'csv')}
+                  onClick={() => exportLeads(leads.filter(l => selectedIds.has(l.id)), 'xlsx')}
                   disabled={selectedIds.size === 0}
                 >
                   <CheckSquare className="h-4 w-4 mr-2" />
                   Exportar Selecionados ({selectedIds.size})
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => exportLeads(leadsWithWhatsApp, 'csv')}>
+                <DropdownMenuItem onClick={() => exportLeads(leadsWithWhatsApp, 'xlsx')}>
                   <MessageCircle className="h-4 w-4 mr-2" />
                   Com WhatsApp ({leadsWithWhatsApp.length})
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => exportLeads(leadsWithoutWhatsApp, 'csv')}>
+                <DropdownMenuItem onClick={() => exportLeads(leadsWithoutWhatsApp, 'xlsx')}>
                   <PhoneOff className="h-4 w-4 mr-2" />
                   Sem WhatsApp ({leadsWithoutWhatsApp.length})
                 </DropdownMenuItem>

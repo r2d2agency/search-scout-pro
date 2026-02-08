@@ -115,6 +115,39 @@ CREATE INDEX idx_sessions_token ON sessions(token);
 CREATE INDEX idx_sessions_user_id ON sessions(user_id);
 
 -- =====================================================
+-- TABELA: saved_searches (pesquisas salvas)
+-- =====================================================
+CREATE TABLE saved_searches (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    query VARCHAR(500) NOT NULL,
+    results_count INT DEFAULT 0,
+    leads JSONB DEFAULT '[]',
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_saved_searches_user_id ON saved_searches(user_id);
+CREATE INDEX idx_saved_searches_created_at ON saved_searches(created_at DESC);
+
+-- =====================================================
+-- TABELA: serp_api_keys (chaves SERP para rotação)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS serp_api_keys (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL,
+    api_key VARCHAR(255) NOT NULL,
+    is_active BOOLEAN DEFAULT true,
+    usage_count INT DEFAULT 0,
+    monthly_limit INT DEFAULT 100,
+    last_used_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_serp_keys_active ON serp_api_keys(is_active, usage_count);
+
+-- =====================================================
 -- FUNÇÕES AUXILIARES
 -- =====================================================
 
