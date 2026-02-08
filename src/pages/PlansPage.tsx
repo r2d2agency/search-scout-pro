@@ -102,7 +102,7 @@ const PlansPage = () => {
     }).format(value);
   };
 
-  if (user?.role !== 'admin') {
+  if (user?.role !== 'admin' && user?.role !== 'superadmin') {
     return (
       <div className="flex items-center justify-center h-[50vh]">
         <Card className="max-w-md">
