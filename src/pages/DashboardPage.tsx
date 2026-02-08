@@ -28,55 +28,27 @@ import DashboardFilters from '@/components/DashboardFilters';
 import StatsCards from '@/components/dashboard/StatsCards';
 import SearchTermsChart from '@/components/dashboard/SearchTermsChart';
 
-// Mock data - substituir por dados reais do backend
-const weeklySearches = [
-  { day: 'Seg', searches: 45, leads: 32 },
-  { day: 'Ter', searches: 52, leads: 41 },
-  { day: 'Qua', searches: 38, leads: 28 },
-  { day: 'Qui', searches: 65, leads: 55 },
-  { day: 'Sex', searches: 78, leads: 62 },
-  { day: 'Sáb', searches: 25, leads: 18 },
-  { day: 'Dom', searches: 12, leads: 8 },
-];
+// Dados zerados - substituir por dados reais do backend
+const weeklySearches: { day: string; searches: number; leads: number }[] = [];
 
-const monthlyTrend = [
-  { month: 'Jan', total: 320 },
-  { month: 'Fev', total: 450 },
-  { month: 'Mar', total: 380 },
-  { month: 'Abr', total: 520 },
-  { month: 'Mai', total: 680 },
-  { month: 'Jun', total: 750 },
-];
+const monthlyTrend: { month: string; total: number }[] = [];
 
 const leadSources = [
-  { name: 'Com WhatsApp', value: 45, color: 'hsl(var(--success))' },
-  { name: 'Com Email', value: 30, color: 'hsl(var(--primary))' },
-  { name: 'Com Telefone', value: 20, color: 'hsl(var(--warning))' },
-  { name: 'Só Website', value: 5, color: 'hsl(var(--muted))' },
+  { name: 'Com WhatsApp', value: 0, color: 'hsl(var(--success))' },
+  { name: 'Com Email', value: 0, color: 'hsl(var(--primary))' },
+  { name: 'Com Telefone', value: 0, color: 'hsl(var(--warning))' },
+  { name: 'Só Website', value: 0, color: 'hsl(var(--muted))' },
 ];
 
 const whatsappStatus = [
-  { name: 'WhatsApp Válido', value: 856, color: 'hsl(var(--success))' },
-  { name: 'Sem WhatsApp', value: 412, color: 'hsl(var(--destructive))' },
-  { name: 'Não Verificado', value: 655, color: 'hsl(var(--muted))' },
+  { name: 'WhatsApp Válido', value: 0, color: 'hsl(var(--success))' },
+  { name: 'Sem WhatsApp', value: 0, color: 'hsl(var(--destructive))' },
+  { name: 'Não Verificado', value: 0, color: 'hsl(var(--muted))' },
 ];
 
-const searchTermsPerformance = [
-  { term: 'restaurantes são paulo', leads: 156, whatsapp: 89 },
-  { term: 'clínicas odontológicas', leads: 89, whatsapp: 52 },
-  { term: 'advocacia trabalhista', leads: 67, whatsapp: 41 },
-  { term: 'contabilidade empresarial', leads: 45, whatsapp: 28 },
-  { term: 'pet shop delivery', leads: 34, whatsapp: 19 },
-  { term: 'academias crossfit', leads: 28, whatsapp: 15 },
-];
+const searchTermsPerformance: { term: string; leads: number; whatsapp: number }[] = [];
 
-const recentSearches = [
-  { term: 'restaurantes são paulo', count: 156, date: '2025-02-07' },
-  { term: 'clínicas odontológicas', count: 89, date: '2025-02-07' },
-  { term: 'advocacia trabalhista', count: 67, date: '2025-02-06' },
-  { term: 'contabilidade empresarial', count: 45, date: '2025-02-06' },
-  { term: 'pet shop delivery', count: 34, date: '2025-02-05' },
-];
+const recentSearches: { term: string; count: number; date: string }[] = [];
 
 const chartConfig = {
   searches: {
@@ -98,10 +70,10 @@ const DashboardPage = () => {
   const [period, setPeriod] = useState<string>('all');
 
   const stats = useMemo(() => ({
-    totalSearches: 2847,
-    totalLeads: 1923,
-    validWhatsApp: 856,
-    conversionRate: 67.5,
+    totalSearches: 0,
+    totalLeads: 0,
+    validWhatsApp: 0,
+    conversionRate: 0,
   }), []);
 
   return (
