@@ -285,6 +285,35 @@ export const apifyKeysApi = {
   },
 };
 
+// API Firecrawl Keys (Instagram via Firecrawl)
+export const firecrawlKeysApi = {
+  async list() {
+    return apiRequest<any[]>('/firecrawl-keys');
+  },
+
+  async create(data: { name: string; apiKey: string; monthlyLimit?: number }) {
+    return apiRequest<any>('/firecrawl-keys', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: string, data: { name?: string; apiKey?: string; isActive?: boolean; monthlyLimit?: number }) {
+    return apiRequest<any>(`/firecrawl-keys/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async delete(id: string) {
+    return apiRequest<void>(`/firecrawl-keys/${id}`, { method: 'DELETE' });
+  },
+
+  async resetUsage() {
+    return apiRequest<void>('/firecrawl-keys/reset-usage', { method: 'POST' });
+  },
+};
+
 // API Search (usa chaves SERP globais)
 export const searchApi = {
   async search(query: string, page = 1) {

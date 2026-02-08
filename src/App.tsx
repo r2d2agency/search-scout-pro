@@ -18,6 +18,7 @@ import UsersPage from "./pages/UsersPage";
 import PricingPage from "./pages/PricingPage";
 import SerpKeysPage from "./pages/SerpKeysPage";
 import ApifyKeysPage from "./pages/ApifyKeysPage";
+import FirecrawlKeysPage from "./pages/FirecrawlKeysPage";
 import UserSettingsPage from "./pages/UserSettingsPage";
 import NotFound from "./pages/NotFound";
 
@@ -49,6 +50,7 @@ const App = () => (
                   <Route path="/admin/users" element={<UsersPage />} />
                   <Route path="/admin/serp-keys" element={<SerpKeysPage />} />
                   <Route path="/admin/apify-keys" element={<ApifyKeysPage />} />
+                  <Route path="/admin/firecrawl-keys" element={<FirecrawlKeysPage />} />
                 </Route>
               </Route>
               

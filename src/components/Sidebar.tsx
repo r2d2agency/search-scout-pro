@@ -9,7 +9,8 @@ import {
   DollarSign,
   Key,
   Cog,
-  Instagram
+  Instagram,
+  Flame
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -33,6 +34,7 @@ const adminItems = [
 const superadminItems = [
   { to: '/admin/serp-keys', icon: Key, label: 'Chaves SERP API' },
   { to: '/admin/apify-keys', icon: Instagram, label: 'Chaves Apify' },
+  { to: '/admin/firecrawl-keys', icon: Flame, label: 'Chaves Firecrawl' },
 ];
 
 export function Sidebar() {
