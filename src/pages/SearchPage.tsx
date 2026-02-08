@@ -36,7 +36,12 @@ import {
   PhoneOff,
   FolderOpen,
   Clock,
-  BookmarkPlus
+  BookmarkPlus,
+  Instagram,
+  Building2,
+  Users,
+  Globe,
+  BadgeCheck
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -46,7 +51,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from '@/hooks/use-toast';
-import { searchApi, leadsApi, savedSearchesApi } from '@/lib/apiClient';
+import { searchApi, leadsApi, savedSearchesApi, instagramApi } from '@/lib/apiClient';
 import { exportToXLSX, exportToCSV, exportToJSON } from '@/lib/api';
 import { Lead } from '@/types/lead';
 import {
@@ -56,6 +61,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const SearchPage = () => {
   const { isAuthenticated } = useAuth();
@@ -67,6 +73,9 @@ const SearchPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  
+  // Fonte de pesquisa
+  const [searchSource, setSearchSource] = useState<'google' | 'instagram'>('google');
   
   // Seleção
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -105,7 +114,15 @@ const SearchPage = () => {
     setIsLoading(true);
     
     try {
-      const response = await searchApi.search(query, page);
+      let response;
+      
+      if (searchSource === 'instagram') {
+        // Busca no Instagram via Apify
+        response = await instagramApi.search(query, 20);
+      } else {
+        // Busca no Google (padrão)
+        response = await searchApi.search(query, page);
+      }
       
       // Se accumulate = true, adiciona aos leads existentes
       if (accumulate && page > 1) {
@@ -130,7 +147,9 @@ const SearchPage = () => {
       if (response.leads.length === 0 && page === 1) {
         toast({
           title: 'Nenhum resultado',
-          description: 'Tente outro termo de pesquisa',
+          description: searchSource === 'instagram' 
+            ? 'Tente um @username ou #hashtag diferente'
+            : 'Tente outro termo de pesquisa',
         });
       } else if (accumulate && response.leads.length > 0) {
         toast({
@@ -148,7 +167,7 @@ const SearchPage = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [query, isAuthenticated, checkLimit, refetchUsage, leads.length]);
+  }, [query, isAuthenticated, checkLimit, refetchUsage, leads.length, searchSource]);
 
   // Carregar mais resultados (acumula)
   const handleLoadMore = () => {
@@ -368,6 +387,20 @@ const SearchPage = () => {
 
   return (
     <div className="space-y-4">
+      {/* Seletor de fonte */}
+      <Tabs value={searchSource} onValueChange={(v) => setSearchSource(v as 'google' | 'instagram')} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="google" className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            Google Meu Negócio
+          </TabsTrigger>
+          <TabsTrigger value="instagram" className="flex items-center gap-2">
+            <Instagram className="h-4 w-4" />
+            Instagram
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       {/* Search Bar */}
       <div className="flex gap-3">
         <div className="relative flex-1">
@@ -376,7 +409,10 @@ const SearchPage = () => {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="clinica medica em rio preto"
+            placeholder={searchSource === 'instagram' 
+              ? "@username ou #hashtag (ex: @clinicamedica ou #estetica)"
+              : "clinica medica em rio preto"
+            }
             className="pl-10 h-12 text-base"
           />
         </div>
@@ -449,12 +485,24 @@ const SearchPage = () => {
         )}
       </div>
 
-      {/* Dica */}
+      {/* Dica contextual */}
       <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg text-sm">
-        <MapPin className="h-4 w-4 text-primary" />
-        <span>
-          <strong>Empresas:</strong> Use localização + tipo de negócio. Ex: "Petshop Salvador", "Clínica médica São Paulo"
-        </span>
+        {searchSource === 'instagram' ? (
+          <>
+            <Instagram className="h-4 w-4 text-primary" />
+            <span>
+              <strong>Influenciadores:</strong> Use @username para perfil específico ou #hashtag para busca. 
+              Ex: "@clinicamedica" ou "#esteticasaopaulo"
+            </span>
+          </>
+        ) : (
+          <>
+            <MapPin className="h-4 w-4 text-primary" />
+            <span>
+              <strong>Empresas:</strong> Use localização + tipo de negócio. Ex: "Petshop Salvador", "Clínica médica São Paulo"
+            </span>
+          </>
+        )}
       </div>
 
       {/* Uso */}
@@ -733,6 +781,7 @@ const SearchPage = () => {
             {filteredLeads.map((lead) => {
               const serpData = (lead as any).serpData || {};
               const isSelected = selectedIds.has(lead.id);
+              const isInstagram = serpData.type === 'instagram';
               
               return (
                 <Card 
@@ -753,15 +802,40 @@ const SearchPage = () => {
                         <span className="font-semibold text-foreground">
                           {lead.company}
                         </span>
+                        {isInstagram && serpData.username && (
+                          <a 
+                            href={`https://instagram.com/${serpData.username}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-pink-500 hover:underline"
+                          >
+                            @{serpData.username}
+                          </a>
+                        )}
+                        {serpData.isVerified && (
+                          <BadgeCheck className="h-4 w-4 text-blue-500" />
+                        )}
                         {lead.whatsapp && (
                           <Badge variant="default" className="bg-emerald-600 hover:bg-emerald-700 text-xs">
                             WhatsApp
                           </Badge>
                         )}
+                        {lead.email && (
+                          <Badge variant="secondary" className="text-xs">
+                            Email
+                          </Badge>
+                        )}
                       </div>
 
-                      {/* Endereço */}
-                      {serpData.address && (
+                      {/* Bio do Instagram */}
+                      {isInstagram && serpData.biography && (
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {serpData.biography}
+                        </p>
+                      )}
+
+                      {/* Endereço (Google) */}
+                      {!isInstagram && serpData.address && (
                         <div className="flex items-center gap-1 text-sm text-muted-foreground">
                           <MapPin className="h-3 w-3 shrink-0" />
                           <span className="truncate">{serpData.address}</span>
@@ -786,6 +860,31 @@ const SearchPage = () => {
                         </div>
                       )}
 
+                      {/* Email */}
+                      {lead.email && (
+                        <div className="flex items-center gap-1 text-sm">
+                          <Globe className="h-3 w-3 text-muted-foreground" />
+                          <a href={`mailto:${lead.email}`} className="text-primary hover:underline">
+                            {lead.email}
+                          </a>
+                        </div>
+                      )}
+
+                      {/* Website */}
+                      {lead.website && (
+                        <div className="flex items-center gap-1 text-sm">
+                          <Globe className="h-3 w-3 text-muted-foreground" />
+                          <a 
+                            href={lead.website} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline truncate max-w-[250px]"
+                          >
+                            {lead.website}
+                          </a>
+                        </div>
+                      )}
+
                       {/* Botão de detalhes */}
                       <Button
                         variant="ghost"
@@ -803,8 +902,21 @@ const SearchPage = () => {
 
                     {/* Lado direito */}
                     <div className="flex flex-col items-end gap-1 shrink-0">
-                      {/* Rating */}
-                      {serpData.rating && (
+                      {/* Seguidores (Instagram) */}
+                      {isInstagram && serpData.followersCount != null && (
+                        <div className="flex items-center gap-1 text-sm">
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">
+                            {serpData.followersCount >= 1000 
+                              ? `${(serpData.followersCount / 1000).toFixed(1)}K`
+                              : serpData.followersCount
+                            }
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Rating (Google) */}
+                      {!isInstagram && serpData.rating && (
                         <div className="flex items-center gap-1">
                           <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
                           <span className="font-medium">{serpData.rating}</span>
@@ -818,7 +930,10 @@ const SearchPage = () => {
 
                       {/* Categoria */}
                       <Badge variant="outline" className="text-xs">
-                        {serpData.businessType || serpData.type || 'Outros'}
+                        {isInstagram 
+                          ? (serpData.businessCategory || 'Instagram')
+                          : (serpData.businessType || serpData.type || 'Outros')
+                        }
                       </Badge>
                     </div>
                   </div>
