@@ -92,7 +92,7 @@ export function Sidebar() {
           ))}
         </ul>
 
-        {user?.role === 'admin' && (
+        {(user?.role === 'admin' || user?.role === 'superadmin') && (
           <>
             <div className="my-4 px-3">
               <p className="text-xs font-semibold text-accent uppercase tracking-wider neon-text-pink">
@@ -123,7 +123,7 @@ export function Sidebar() {
       </nav>
       
       <div className="p-4 border-t">
-        {isAuthenticated && user ? (
+        {user && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="w-full justify-start gap-3">
@@ -134,8 +134,10 @@ export function Sidebar() {
                   <p className="text-sm font-medium truncate">{user.name}</p>
                   <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                 </div>
-                {user.role === 'admin' && (
-                  <Badge variant="secondary" className="text-xs">Admin</Badge>
+                {(user.role === 'admin' || user.role === 'superadmin') && (
+                  <Badge variant="secondary" className="text-xs">
+                    {user.role === 'superadmin' ? 'Super' : 'Admin'}
+                  </Badge>
                 )}
               </Button>
             </DropdownMenuTrigger>
@@ -151,23 +153,6 @@ export function Sidebar() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        ) : (
-          <div className="space-y-2">
-            <Button 
-              variant="default" 
-              className="w-full"
-              onClick={() => navigate('/login')}
-            >
-              Entrar
-            </Button>
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={() => navigate('/register')}
-            >
-              Cadastrar
-            </Button>
-          </div>
         )}
       </div>
     </aside>
