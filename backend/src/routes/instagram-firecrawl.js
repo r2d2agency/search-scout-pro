@@ -471,6 +471,11 @@ function extractAllFromText(text) {
   const phones = text.match(phoneRegex) || [];
   if (phones.length > 0) {
     result.phone = phones[0].replace(/\D/g, '');
+    
+    // Se temos telefone mas não WhatsApp (via link), usar o telefone como WhatsApp
+    if (!result.whatsapp) {
+      result.whatsapp = result.phone;
+    }
   }
 
   // Se encontramos WhatsApp mas não telefone, usar o WhatsApp

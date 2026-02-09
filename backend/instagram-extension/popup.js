@@ -1,3 +1,4 @@
+// R2D2 - TNS
 document.addEventListener('DOMContentLoaded', () => {
   // Elements - Screens
   const loginScreen = document.getElementById('loginScreen');
@@ -12,9 +13,61 @@ document.addEventListener('DOMContentLoaded', () => {
   const logoutBtn = document.getElementById('logoutBtn');
   const startBtn = document.getElementById('startBtn');
   const stopBtn = document.getElementById('stopBtn');
+  const openOverlayBtn = document.getElementById('openOverlayBtn');
   const statusDiv = document.getElementById('status');
   const toggleSettings = document.getElementById('toggleSettings');
   const settingsPanel = document.getElementById('settingsPanel');
+  
+  // Force log display when progress is shown
+  function showProgress() {
+      document.getElementById('progressContainer').style.display = 'block';
+      document.getElementById('activityLog').style.display = 'flex';
+  }
+
+  // Open Overlay
+  openOverlayBtn.addEventListener('click', () => {
+    chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+        const activeTab = tabs[0];
+        if (activeTab) {
+            // Check if URL is Instagram
+            if (!activeTab.url || !activeTab.url.includes("instagram.com")) {
+                alert("⚠️ Você não está no Instagram!\n\nPor favor, acesse www.instagram.com e tente novamente.");
+                return;
+            }
+
+            // Function to send message with retry
+            const sendMessageToContent = (retries = 1) => {
+                chrome.tabs.sendMessage(activeTab.id, { action: "OPEN_OVERLAY" }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        console.log("Falha ao conectar, tentativa restante:", retries);
+                        if (retries > 0) {
+                            // Try to inject content script dynamically
+                            chrome.scripting.executeScript({
+                                target: { tabId: activeTab.id },
+                                files: ['content.js']
+                            }, () => {
+                                if (chrome.runtime.lastError) {
+                                    console.error("Erro na injeção:", chrome.runtime.lastError);
+                                    alert("⚠️ Erro crítico: Não foi possível injetar o script.\n\nPor favor, ATUALIZE (F5) a página.");
+                                } else {
+                                    // Wait a bit for script to init
+                                    setTimeout(() => sendMessageToContent(retries - 1), 200);
+                                }
+                            });
+                        } else {
+                            alert("⚠️ Erro de conexão!\n\nPor favor, ATUALIZE (F5) a página do Instagram e tente novamente.");
+                        }
+                        return;
+                    }
+                    // Only close if successful
+                    window.close();
+                });
+            };
+
+            sendMessageToContent();
+        }
+    });
+  });
   
   // Load User State
   chrome.storage.local.get(['userEmail', 'leadsToday', 'leadsTotal'], (result) => {
@@ -172,7 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
           startBtn.style.display = 'none';
           stopBtn.style.display = 'block';
           
-          document.getElementById('progressContainer').style.display = 'block';
+          showProgress();
           document.getElementById('progressCount').textContent = `${count}/${total}`;
           
           if (total !== '∞') {
@@ -206,13 +259,31 @@ document.addEventListener('DOMContentLoaded', () => {
           }
           
           // Update local stats display optimistically
-          // In a real app, you might sync this with the backend response
           chrome.storage.local.get(['leadsToday', 'leadsTotal'], (res) => {
             const currentTotal = res.leadsTotal || 0;
-            // This is a simple increment, logic might need refinement based on exact backend response
-            // For now, we trust the count from content script is the session count
           });
 
+      } else if (request.action === "UPDATE_STATUS") {
+          const statusEl = document.getElementById('status');
+          statusEl.textContent = request.message;
+          
+          // Add to log
+          const logContainer = document.getElementById('activityLog');
+          logContainer.style.display = 'flex';
+          
+          const entry = document.createElement('div');
+          entry.className = 'log-entry';
+          
+          const time = new Date().toLocaleTimeString().split(' ')[0];
+          entry.innerHTML = `<span class="log-time">[${time}]</span> ${request.message}`;
+          
+          logContainer.prepend(entry);
+          
+          // Limit log entries
+          if (logContainer.children.length > 50) {
+              logContainer.removeChild(logContainer.lastChild);
+          }
+          
       } else if (request.action === "SCRAPE_COMPLETE") {
           statusDiv.textContent = 'Concluído!';
           startBtn.style.display = 'block';
@@ -220,7 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
           // Keep progress visible for a moment
           setTimeout(() => {
             document.getElementById('progressContainer').style.display = 'none';
-          }, 3000);
+          }, 5000); // Wait longer to see final status
           chrome.storage.local.remove(['searchState']);
       }
   });
@@ -301,7 +372,7 @@ document.addEventListener('DOMContentLoaded', () => {
       startBtn.style.display = 'none';
       stopBtn.style.display = 'block';
       statusDiv.textContent = 'Iniciando...';
-      document.getElementById('progressContainer').style.display = 'block';
+      showProgress();
       document.getElementById('progressBar').style.width = '0%';
 
       // Determine Action and Payload

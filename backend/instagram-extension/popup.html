@@ -1,3 +1,4 @@
+<!-- R2D2 - TNS -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -286,6 +287,36 @@
       width: 0%;
       transition: width 0.3s ease;
       box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    /* Animation for active progress bar */
+    .progress-fill::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      right: 0;
+      background-image: linear-gradient(
+        -45deg, 
+        rgba(255, 255, 255, .2) 25%, 
+        transparent 25%, 
+        transparent 50%, 
+        rgba(255, 255, 255, .2) 50%, 
+        rgba(255, 255, 255, .2) 75%, 
+        transparent 75%, 
+        transparent
+      );
+      z-index: 1;
+      background-size: 20px 20px;
+      animation: move 1s linear infinite;
+    }
+
+    @keyframes move {
+      0% { background-position: 0 0; }
+      100% { background-position: 20px 20px; }
     }
 
     #status {
@@ -294,6 +325,33 @@
       color: #888;
       margin-top: 8px;
       min-height: 15px;
+    }
+    
+    /* Console Log Style Area */
+    #activityLog {
+      background: #000;
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 8px;
+      height: 100px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      color: #0f0;
+      margin-top: 12px;
+      display: none;
+      flex-direction: column;
+      gap: 4px;
+    }
+    
+    .log-entry {
+      border-bottom: 1px solid #111;
+      padding-bottom: 2px;
+    }
+    
+    .log-time {
+      color: #666;
+      margin-right: 4px;
     }
   </style>
 </head>
@@ -340,6 +398,9 @@
         <div id="progressBar" class="progress-fill"></div>
       </div>
       <div id="status">Aguardando início...</div>
+      
+      <!-- Activity Log -->
+      <div id="activityLog"></div>
     </div>
 
     <div class="radio-group">
@@ -363,6 +424,7 @@
     </div>
 
     <!-- Actions -->
+    <button id="openOverlayBtn" class="action-btn btn-secondary" style="margin-bottom: 8px;">🖥️ ABRIR PAINEL NA TELA</button>
     <button id="startBtn" class="action-btn btn-primary">INICIAR EXTRAÇÃO</button>
     <button id="stopBtn" class="action-btn btn-danger" style="display: none;">PARAR EXTRAÇÃO</button>
 

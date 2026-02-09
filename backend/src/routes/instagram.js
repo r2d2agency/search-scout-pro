@@ -344,10 +344,15 @@ function extractAllFromBio(bio, externalUrl) {
   for (const phone of foundPhones) {
     const isAlreadyAdded = result.allPhones.some(p => p.number === phone);
     if (!isAlreadyAdded) {
-      result.allPhones.push({ number: phone, source: 'bio', isWhatsApp: false });
+      // Assumir que telefones na bio podem ser WhatsApp
+      result.allPhones.push({ number: phone, source: 'bio', isWhatsApp: true });
     }
     if (!result.phone) {
       result.phone = phone;
+    }
+    // Se não encontramos WhatsApp via link, usar o telefone encontrado
+    if (!result.whatsapp) {
+      result.whatsapp = phone;
     }
   }
 
