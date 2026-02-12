@@ -49,7 +49,7 @@ async function incrementUsage(userId, type, count = 1) {
 // Buscar perfis do Instagram via Firecrawl
 router.post('/search', authenticate, async (req, res) => {
   try {
-    const { query, limit = 20 } = req.body;
+    const { query, limit = 20, page = 1 } = req.body;
     
     if (!query || query.trim().length === 0) {
       return res.status(400).json({ message: 'Termo de pesquisa é obrigatório' });
@@ -86,7 +86,7 @@ router.post('/search', authenticate, async (req, res) => {
 
     for (const searchQuery of searchQueries) {
       try {
-        console.log(`[Firecrawl] Tentando query: ${searchQuery}`);
+        console.log(`[Firecrawl] Tentando query: ${searchQuery} (Página ${page})`);
         
         const searchResponse = await fetch('https://api.firecrawl.dev/v1/search', {
           method: 'POST',
@@ -97,6 +97,7 @@ router.post('/search', authenticate, async (req, res) => {
           body: JSON.stringify({
             query: searchQuery,
             limit: Math.min(limit, 10),
+            page: page
           }),
         });
 
@@ -160,9 +161,9 @@ router.post('/search', authenticate, async (req, res) => {
     res.json({
       leads,
       pagination: {
-        currentPage: 1,
+        currentPage: page,
         totalResults: leads.length,
-        hasMore: false,
+        hasMore: leads.length > 0, // Se retornou leads, assumimos que pode ter mais na próxima página
       },
       searchMetadata: {
         source: 'Instagram via Firecrawl',

@@ -121,7 +121,7 @@ const SearchPage = () => {
       
       if (searchSource === 'instagram') {
         // Busca no Instagram via Firecrawl (mais rápido que Apify)
-        response = await instagramFirecrawlApi.search(query, 20);
+        response = await instagramFirecrawlApi.search(query, 20, page);
       } else {
         // Busca no Google (padrão)
         response = await searchApi.search(query, page);

@@ -398,7 +398,7 @@ export const instagramApi = {
 
 // API Instagram via Firecrawl (alternativa mais rápida)
 export const instagramFirecrawlApi = {
-  async search(query: string, limit = 20) {
+  async search(query: string, limit = 20, page = 1) {
     return apiRequest<{
       leads: any[];
       pagination: {
@@ -413,7 +413,7 @@ export const instagramFirecrawlApi = {
       };
     }>('/instagram-firecrawl/search', {
       method: 'POST',
-      body: JSON.stringify({ query, limit }),
+      body: JSON.stringify({ query, limit, page }),
     });
   },
 
