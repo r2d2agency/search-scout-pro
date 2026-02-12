@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../config/database');
 const { authenticate } = require('../middleware/auth');
 const firecrawlKeysRouter = require('./firecrawl-keys');
+const serpKeysRouter = require('./serp-keys');
 
 const router = express.Router();
 
@@ -61,66 +62,77 @@ router.post('/search', authenticate, async (req, res) => {
       return res.status(403).json({ message: 'Limite de pesquisas atingido para este mês' });
     }
 
-    // Obter chave via rotação (usuário > global > env)
-    const { key: apiKey, source: keySource } = await firecrawlKeysRouter.getNextAvailableKey(req.user.id);
+    // Obter chave SERP para busca (usar Google via Serper para melhor paginação e resultados)
+    const serpKey = await serpKeysRouter.getNextAvailableKey();
     
-    if (!apiKey) {
+    if (!serpKey) {
       return res.status(503).json({ 
-        message: 'Nenhuma chave Firecrawl disponível. Configure uma chave no painel de administração.' 
+        message: 'Nenhuma chave Serper disponível. Configure uma chave no painel de administração.' 
       });
     }
 
-    console.log(`[Firecrawl] Usando chave de: ${keySource}`);
+    const keySource = 'Serper (Google)';
+    console.log(`[InstagramSearch] Usando chave Serper para busca`);
 
     const cleanQuery = query.replace('@', '').replace('#', '').trim();
-    console.log('[Firecrawl] Iniciando busca Instagram:', { query: cleanQuery, limit });
+    console.log('[InstagramSearch] Iniciando busca Instagram:', { query: cleanQuery, limit, page });
 
-    // ESTRATÉGIA 1: Buscar diretamente perfis do Instagram via Google
-    // Usar query mais específica para perfis comerciais
+    // ESTRATÉGIA 1: Buscar perfis do Instagram via Google (Serper)
+    // Usar site:instagram.com para filtrar
     const searchQueries = [
       `"${cleanQuery}" site:instagram.com`,
       `${cleanQuery} instagram perfil`,
     ];
 
     let allResults = [];
+    const start = (page - 1) * limit; // Paginação via start
 
     for (const searchQuery of searchQueries) {
       try {
-        console.log(`[Firecrawl] Tentando query: ${searchQuery} (Página ${page})`);
+        console.log(`[InstagramSearch] Tentando query: ${searchQuery} (Start ${start})`);
         
-        const searchResponse = await fetch('https://api.firecrawl.dev/v1/search', {
+        const searchResponse = await fetch('https://google.serper.dev/search', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${apiKey}`,
+            'X-API-KEY': serpKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            query: searchQuery,
-            limit: Math.min(limit, 10),
-            page: page
+            q: searchQuery,
+            gl: 'br',
+            hl: 'pt-br',
+            num: 20, // Serper retorna max 10-20 por página orgânica normalmente, mas aceita num até 100 as vezes
+            start: start
           }),
         });
 
         if (searchResponse.ok) {
           const searchData = await searchResponse.json();
-          console.log(`[Firecrawl] Resultados para "${searchQuery}":`, searchData.data?.length || 0);
+          const organicResults = searchData.organic || [];
+          console.log(`[InstagramSearch] Resultados para "${searchQuery}":`, organicResults.length);
           
-          if (searchData.data && searchData.data.length > 0) {
-            allResults = [...allResults, ...searchData.data];
+          if (organicResults.length > 0) {
+            // Mapear formato Serper para formato genérico esperado
+            const mappedResults = organicResults.map(item => ({
+              title: item.title,
+              description: item.snippet,
+              url: item.link
+            }));
+            allResults = [...allResults, ...mappedResults];
           }
         } else {
           const errorText = await searchResponse.text();
-          console.error(`[Firecrawl] Erro na busca:`, searchResponse.status, errorText);
+          console.error(`[InstagramSearch] Erro na busca Serper:`, searchResponse.status, errorText);
         }
       } catch (err) {
-        console.error(`[Firecrawl] Erro na query "${searchQuery}":`, err.message);
+        console.error(`[InstagramSearch] Erro na query "${searchQuery}":`, err.message);
       }
 
       // Se já temos resultados suficientes, parar
       if (allResults.length >= limit) break;
     }
 
-    console.log(`[Firecrawl] Total de resultados brutos: ${allResults.length}`);
+    console.log(`[InstagramSearch] Total de resultados brutos: ${allResults.length}`);
 
     // Processar resultados para formato de leads
     const leads = [];
@@ -143,30 +155,38 @@ router.post('/search', authenticate, async (req, res) => {
       if (leads.length >= limit) break;
     }
 
-    // Se não encontramos nada via busca, tentar scrape direto do perfil
+    // Se não encontramos nada via busca, tentar scrape direto do perfil (usando Firecrawl)
     if (leads.length === 0 && cleanQuery.length > 2) {
-      console.log(`[Firecrawl] Tentando scrape direto do perfil: @${cleanQuery}`);
+      console.log(`[InstagramSearch] Tentando scrape direto do perfil via Firecrawl: @${cleanQuery}`);
       
-      const profileData = await scrapeInstagramProfile(apiKey, cleanQuery);
-      if (profileData && profileData.username) {
-        leads.push(createLeadFromProfile(profileData, query, 0));
+      // Obter chave Firecrawl apenas se necessário
+      const firecrawlKeyData = await firecrawlKeysRouter.getNextAvailableKey(req.user.id);
+      const firecrawlKey = firecrawlKeyData.key;
+
+      if (firecrawlKey) {
+        const profileData = await scrapeInstagramProfile(firecrawlKey, cleanQuery);
+        if (profileData && profileData.username) {
+          leads.push(createLeadFromProfile(profileData, query, 0));
+        }
+      } else {
+        console.log('[InstagramSearch] Nenhuma chave Firecrawl disponível para fallback.');
       }
     }
 
     // Incrementar uso
     await incrementUsage(req.user.id, 'search', 1);
 
-    console.log(`[Firecrawl] Leads finais: ${leads.length}`);
+    console.log(`[InstagramSearch] Leads finais: ${leads.length}`);
 
     res.json({
       leads,
       pagination: {
         currentPage: page,
-        totalResults: leads.length,
-        hasMore: leads.length > 0, // Se retornou leads, assumimos que pode ter mais na próxima página
+        totalResults: leads.length, // Serper não retorna total exato facilmente, mas ok
+        hasMore: leads.length > 0, 
       },
       searchMetadata: {
-        source: 'Instagram via Firecrawl',
+        source: 'Instagram via Serper (Google)',
         query,
         totalResults: leads.length,
         keySource,
