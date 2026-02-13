@@ -278,6 +278,13 @@ export default function CnpjPage() {
     window.open(`https://www.google.com/search?q=${encodeURIComponent(nomeFantasia)}`, '_blank');
   };
 
+  const useCnaeAsFilter = (cnaeCode: string) => {
+    const code = cnaeCode.replace(/[.\-/]/g, '').substring(0, 7);
+    setSearchFilters(f => ({ ...f, cnae: code }));
+    setActiveTab('search');
+    toast({ title: 'CNAE aplicado', description: `CNAE ${code} preenchido na pesquisa avançada` });
+  };
+
   const handleExport = () => {
     if (searchResults.length === 0) return;
     const formatted = searchResults.map((r: any, idx: number) => ({
@@ -390,7 +397,51 @@ export default function CnpjPage() {
                   <InfoRow label="Nome Fantasia" value={lookupResult.estabelecimento?.nome_fantasia} />
                   <InfoRow label="Capital Social" value={lookupResult.empresa?.capital_social ? `R$ ${Number(lookupResult.empresa.capital_social).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : null} />
                   <InfoRow label="Natureza Jurídica" value={lookupResult.empresa?.natureza_descricao} />
-                  <InfoRow label="CNAE Principal" value={lookupResult.estabelecimento?.cnae_principal} />
+                  {/* CNAE Principal */}
+                  {lookupResult.estabelecimento?.cnae_principal && (
+                    <div className="space-y-1">
+                      <span className="text-sm text-muted-foreground">CNAE Principal</span>
+                      <div>
+                        <Badge 
+                          variant="outline" 
+                          className="cursor-pointer hover:bg-primary/10 hover:border-primary transition-colors"
+                          onClick={() => useCnaeAsFilter(lookupResult.estabelecimento.cnae_principal)}
+                          title="Usar como filtro na pesquisa avançada"
+                        >
+                          {lookupResult.estabelecimento.cnae_principal}
+                          <Search className="h-3 w-3 ml-1" />
+                        </Badge>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* CNAEs Secundários */}
+                  {lookupResult.estabelecimento?.cnaes_secundarios && lookupResult.estabelecimento.cnaes_secundarios.length > 0 && (
+                    <div className="space-y-2">
+                      <span className="text-sm text-muted-foreground">CNAEs Secundários ({lookupResult.estabelecimento.cnaes_secundarios.length})</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {lookupResult.estabelecimento.cnaes_secundarios.map((cnae: any, idx: number) => {
+                          const code = typeof cnae === 'string' ? cnae : cnae.codigo || cnae.code || cnae.cnae || '';
+                          const desc = typeof cnae === 'object' ? (cnae.descricao || cnae.description || '') : '';
+                          if (!code) return null;
+                          return (
+                            <Badge 
+                              key={idx}
+                              variant="secondary" 
+                              className="cursor-pointer hover:bg-primary/20 hover:border-primary/50 border border-transparent transition-colors text-xs"
+                              onClick={() => useCnaeAsFilter(code)}
+                              title={desc ? `${desc} — Clique para usar como filtro` : 'Clique para usar como filtro'}
+                            >
+                              {code}
+                              {desc && <span className="ml-1 max-w-[150px] truncate opacity-70">· {desc}</span>}
+                              <Search className="h-2.5 w-2.5 ml-1 opacity-60" />
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   <InfoRow label="Data de Abertura" value={lookupResult.estabelecimento?.data_inicio_atividade ? formatDateDisplay(lookupResult.estabelecimento.data_inicio_atividade) : null} />
                   <div className="pt-2">
                     <Badge variant={lookupResult.estabelecimento?.situacao_cadastral === '02' ? 'default' : 'destructive'}>
