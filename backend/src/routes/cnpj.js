@@ -65,6 +65,14 @@ router.post('/search', authenticate, async (req, res) => {
       limit = 20, page = 1 
     } = req.body;
 
+    // Validação obrigatória: UF + Município + (CNAE ou Razão Social)
+    if (!uf || !municipio) {
+      return res.status(400).json({ message: 'UF e Município são obrigatórios' });
+    }
+    if (!cnae && !razao_social) {
+      return res.status(400).json({ message: 'Informe pelo menos CNAE ou Razão Social' });
+    }
+
     const apiToken = await getCnpjApiToken();
     if (!apiToken) {
       return res.status(400).json({ message: 'Token da API CNPJ não configurado. Solicite ao administrador.' });
