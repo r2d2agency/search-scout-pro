@@ -353,22 +353,18 @@ export const searchApi = {
 
 // API Instagram (via Apify)
 export const instagramApi = {
-  async search(query: string, limit = 20) {
+  async search(query: string, limit = 20, page = 1) {
     return apiRequest<{
       leads: any[];
       pagination: {
-        currentPage: number;
+        page: number;
+        limit: number;
         totalResults: number;
         hasMore: boolean;
       };
-      searchMetadata: {
-        source: string;
-        query: string;
-        totalResults: number;
-      };
     }>('/instagram/search', {
       method: 'POST',
-      body: JSON.stringify({ query, limit }),
+      body: JSON.stringify({ query, limit, page }),
     });
   },
 
@@ -406,6 +402,24 @@ export const instagramApi = {
     }>('/instagram/suggestions', {
       method: 'POST',
       body: JSON.stringify({ query }),
+    });
+  },
+};
+
+// API LinkedIn
+export const linkedinApi = {
+  async search(query: string, limit = 10, page = 1) {
+    return apiRequest<{
+      leads: any[];
+      pagination: {
+        page: number;
+        limit: number;
+        totalResults: number;
+        hasMore: boolean;
+      };
+    }>('/linkedin/search', {
+      method: 'POST',
+      body: JSON.stringify({ query, limit, page }),
     });
   },
 };

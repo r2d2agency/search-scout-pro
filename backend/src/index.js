@@ -15,6 +15,7 @@ const searchRoutes = require('./routes/search');
 const savedSearchesRoutes = require('./routes/saved-searches');
 const instagramRoutes = require('./routes/instagram');
 const instagramFirecrawlRoutes = require('./routes/instagram-firecrawl');
+const linkedinRoutes = require('./routes/linkedin');
 const firecrawlKeysRoutes = require('./routes/firecrawl-keys');
 
 const app = express();
@@ -86,6 +87,7 @@ app.use('/api/search', searchRoutes);
 app.use('/api/saved-searches', savedSearchesRoutes);
 app.use('/api/instagram', instagramRoutes);
 app.use('/api/instagram-firecrawl', instagramFirecrawlRoutes);
+app.use('/api/linkedin', linkedinRoutes);
 app.use('/api/firecrawl-keys', firecrawlKeysRoutes);
 
 // Health check

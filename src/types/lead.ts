@@ -33,7 +33,14 @@ export interface SerpDataLocal {
   description?: string | null;
 }
 
-export type SerpData = SerpDataOrganic | SerpDataLocal;
+export interface SerpDataLinkedin {
+  type: 'linkedin';
+  position?: number;
+  snippet?: string | null;
+  linkedinId?: string | null;
+}
+
+export type SerpData = SerpDataOrganic | SerpDataLocal | SerpDataLinkedin | any;
 
 export interface Lead {
   id: string;

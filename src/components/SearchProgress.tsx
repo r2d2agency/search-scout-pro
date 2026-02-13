@@ -88,11 +88,13 @@ export function SearchProgress({ isLoading, source }: SearchProgressProps) {
           </div>
           <div>
             <h3 className="font-semibold text-lg neon-text-cyan">
-              Pesquisando {source === 'instagram' ? 'Instagram' : 'Google Meu Negócio'}
+              Pesquisando {source === 'instagram' ? 'Instagram' : source === 'linkedin' ? 'LinkedIn' : 'Google Meu Negócio'}
             </h3>
             <p className="text-sm text-muted-foreground">
               {source === 'instagram' 
                 ? 'Conectando via Firecrawl...' 
+                : source === 'linkedin'
+                ? 'Analisando perfis profissionais...'
                 : 'Buscando estabelecimentos...'}
             </p>
           </div>

@@ -54,7 +54,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from '@/hooks/use-toast';
-import { searchApi, leadsApi, savedSearchesApi, instagramFirecrawlApi } from '@/lib/apiClient';
+import { searchApi, leadsApi, savedSearchesApi, instagramFirecrawlApi, linkedinApi } from '@/lib/apiClient';
 import { exportToXLSX, exportToCSV, exportToJSON } from '@/lib/api';
 import { Lead } from '@/types/lead';
 import {
@@ -78,7 +78,7 @@ const SearchPage = () => {
   const [hasMore, setHasMore] = useState(false);
   
   // Fonte de pesquisa
-  const [searchSource, setSearchSource] = useState<'google' | 'instagram'>('google');
+  const [searchSource, setSearchSource] = useState<'google' | 'instagram' | 'linkedin'>('google');
   
   // Seleção
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -122,6 +122,9 @@ const SearchPage = () => {
       if (searchSource === 'instagram') {
         // Busca no Instagram via Firecrawl (mais rápido que Apify)
         response = await instagramFirecrawlApi.search(query, 20, page);
+      } else if (searchSource === 'linkedin') {
+        // Busca no LinkedIn
+        response = await linkedinApi.search(query, 10, page);
       } else {
         // Busca no Google (padrão)
         response = await searchApi.search(query, page);
@@ -148,11 +151,16 @@ const SearchPage = () => {
       }
 
       if (response.leads.length === 0 && page === 1) {
+        let description = 'Tente outro termo de pesquisa';
+        if (searchSource === 'instagram') {
+          description = 'Tente um @username ou #hashtag diferente';
+        } else if (searchSource === 'linkedin') {
+          description = 'Tente um nome de empresa, cargo ou habilidade diferente';
+        }
+
         toast({
           title: 'Nenhum resultado',
-          description: searchSource === 'instagram' 
-            ? 'Tente um @username ou #hashtag diferente'
-            : 'Tente outro termo de pesquisa',
+          description,
         });
       } else if (accumulate && response.leads.length > 0) {
         toast({
@@ -498,6 +506,13 @@ const SearchPage = () => {
               similares (stockzero, stockzero.sp, stockzero_riopreto...). Links wa.me são detectados como WhatsApp.
             </span>
           </>
+        ) : searchSource === 'linkedin' ? (
+          <>
+            <Users className="h-4 w-4 text-primary" />
+            <span>
+              <strong>Busca no LinkedIn:</strong> Digite cargo, empresa ou habilidade. Ex: "Diretor Comercial SP", "Programador React". O sistema busca perfis e tenta extrair contatos do snippet.
+            </span>
+          </>
         ) : (
           <>
             <MapPin className="h-4 w-4 text-primary" />
@@ -788,6 +803,7 @@ const SearchPage = () => {
               const serpData = (lead as any).serpData || {};
               const isSelected = selectedIds.has(lead.id);
               const isInstagram = serpData.type === 'instagram';
+              const isLinkedin = serpData.type === 'linkedin';
               
               return (
                 <Card 
@@ -813,6 +829,12 @@ const SearchPage = () => {
                             @{serpData.username}
                           </span>
                         )}
+                        {isLinkedin && (
+                          <span className="text-sm text-muted-foreground flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            LinkedIn
+                          </span>
+                        )}
                         {serpData.isVerified && (
                           <BadgeCheck className="h-4 w-4 text-primary" />
                         )}
@@ -828,15 +850,15 @@ const SearchPage = () => {
                         )}
                       </div>
 
-                      {/* Bio do Instagram com destaque para contatos */}
-                      {isInstagram && serpData.biography && (
+                      {/* Bio do Instagram ou Snippet do LinkedIn */}
+                      {((isInstagram && serpData.biography) || (isLinkedin && serpData.snippet)) && (
                         <div className="text-sm text-muted-foreground">
-                          <p className="line-clamp-2">{serpData.biography}</p>
+                          <p className="line-clamp-2">{isInstagram ? serpData.biography : serpData.snippet}</p>
                         </div>
                       )}
 
                       {/* Dados de contato extraídos da bio */}
-                      {isInstagram && (lead.phone || lead.email || lead.website || lead.whatsapp) && (
+                      {(isInstagram || isLinkedin) && (lead.phone || lead.email || lead.website || lead.whatsapp) && (
                         <div className="flex flex-wrap gap-2 mt-1">
                           {/* WhatsApp confirmado (de link wa.me) */}
                           {lead.whatsapp && (
@@ -908,7 +930,7 @@ const SearchPage = () => {
                       )}
 
                       {/* Endereço (Google) */}
-                      {!isInstagram && serpData.address && (
+                      {!isInstagram && !isLinkedin && serpData.address && (
                         <div className="flex items-center gap-1 text-sm text-muted-foreground">
                           <MapPin className="h-3 w-3 shrink-0" />
                           <span className="truncate">{serpData.address}</span>
@@ -916,7 +938,7 @@ const SearchPage = () => {
                       )}
 
                       {/* Telefone (Google) */}
-                      {!isInstagram && lead.phone && (
+                      {!isInstagram && !isLinkedin && lead.phone && (
                         <div className="flex items-center gap-1 text-sm">
                           <Phone className="h-3 w-3 text-muted-foreground" />
                           <span>{lead.phone}</span>
@@ -934,7 +956,7 @@ const SearchPage = () => {
                       )}
 
                       {/* Email (Google) */}
-                      {!isInstagram && lead.email && (
+                      {!isInstagram && !isLinkedin && lead.email && (
                         <div className="flex items-center gap-1 text-sm">
                           <Mail className="h-3 w-3 text-muted-foreground" />
                           <a href={`mailto:${lead.email}`} className="text-primary hover:underline">
@@ -944,7 +966,7 @@ const SearchPage = () => {
                       )}
 
                       {/* Website (Google) */}
-                      {!isInstagram && lead.website && (
+                      {!isInstagram && !isLinkedin && lead.website && (
                         <div className="flex items-center gap-1 text-sm">
                           <Globe className="h-3 w-3 text-muted-foreground" />
                           <a 
@@ -960,9 +982,9 @@ const SearchPage = () => {
 
                       {/* Botões de ação */}
                       <div className="flex items-center gap-2 pt-1">
-                        {isInstagram && serpData.username && (
+                        {((isInstagram && serpData.username) || (isLinkedin && lead.link)) && (
                           <a
-                            href={`https://instagram.com/${serpData.username}`}
+                            href={isInstagram ? `https://instagram.com/${serpData.username}` : lead.link}
                             target="_blank"
                             rel="noopener noreferrer"
                           >
@@ -971,7 +993,7 @@ const SearchPage = () => {
                               size="sm"
                               className="h-7 px-3 text-xs"
                             >
-                              <Instagram className="h-3 w-3 mr-1" />
+                              {isInstagram ? <Instagram className="h-3 w-3 mr-1" /> : <Users className="h-3 w-3 mr-1" />}
                               Ver Perfil
                             </Button>
                           </a>
@@ -1007,7 +1029,7 @@ const SearchPage = () => {
                       )}
 
                       {/* Rating (Google) */}
-                      {!isInstagram && serpData.rating && (
+                      {!isInstagram && !isLinkedin && serpData.rating && (
                         <div className="flex items-center gap-1">
                           <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
                           <span className="font-medium">{serpData.rating}</span>
@@ -1023,7 +1045,9 @@ const SearchPage = () => {
                       <Badge variant="outline" className="text-xs">
                         {isInstagram 
                           ? (serpData.businessCategory || 'Instagram')
-                          : (serpData.businessType || serpData.type || 'Outros')
+                          : isLinkedin 
+                            ? 'LinkedIn' 
+                            : (serpData.businessType || serpData.type || 'Outros')
                         }
                       </Badge>
                     </div>
