@@ -540,13 +540,13 @@ const SearchPage = () => {
                 ) : (
                   <ChevronRight className="h-4 w-4 mr-1" />
                 )}
-                Carregar +20
+                Carregar +10
               </Button>
             </div>
             
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Info className="h-4 w-4" />
-              {hasMore ? 'Clique em "Carregar +20" para mais resultados' : 'Todos os resultados carregados'}
+              {hasMore ? 'Clique em "Carregar +10" para mais resultados' : 'Todos os resultados carregados'}
             </div>
           </div>
 
@@ -1048,7 +1048,7 @@ const SearchPage = () => {
                 ) : (
                   <ChevronRight className="h-5 w-5 mr-2" />
                 )}
-                Carregar mais 20 resultados
+                Carregar mais 10 resultados
               </Button>
             </div>
           )}
