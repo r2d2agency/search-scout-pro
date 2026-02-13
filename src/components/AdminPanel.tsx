@@ -14,7 +14,8 @@ import {
   Loader2,
   Eye,
   EyeOff,
-  Palette
+  Palette,
+  Building2
 } from 'lucide-react';
 
 export function AdminPanel() {
@@ -30,6 +31,7 @@ export function AdminPanel() {
   
   const [showSerpKey, setShowSerpKey] = useState(false);
   const [showEvolutionKey, setShowEvolutionKey] = useState(false);
+  const [showCnpjToken, setShowCnpjToken] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -53,6 +55,10 @@ export function AdminPanel() {
           <TabsTrigger value="evolution">
             <Server className="mr-2 h-4 w-4" />
             Evolution API
+          </TabsTrigger>
+          <TabsTrigger value="cnpj">
+            <Building2 className="mr-2 h-4 w-4" />
+            CNPJ API
           </TabsTrigger>
         </TabsList>
 
@@ -186,6 +192,53 @@ export function AdminPanel() {
                   )}
                   Testar Conexão
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="cnpj">
+          <Card>
+            <CardHeader>
+              <CardTitle>API CNPJ (Gleego)</CardTitle>
+              <CardDescription>
+                Configure o token da API para consulta de CNPJ.
+                Obtenha seu token em{' '}
+                <a 
+                  href="https://cnpj.gleego.com.br" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  cnpj.gleego.com.br
+                </a>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="cnpjApiToken">Token da API CNPJ</Label>
+                <div className="relative">
+                  <Input
+                    id="cnpjApiToken"
+                    type={showCnpjToken ? 'text' : 'password'}
+                    placeholder="Cole seu token da API CNPJ aqui"
+                    value={settings.cnpjApiToken}
+                    onChange={(e) => updateSettings({ cnpjApiToken: e.target.value })}
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3"
+                    onClick={() => setShowCnpjToken(!showCnpjToken)}
+                  >
+                    {showCnpjToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Este token será usado para consultas de CNPJ disponíveis para todos os usuários do sistema.
+                </p>
               </div>
             </CardContent>
           </Card>

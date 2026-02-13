@@ -26,22 +26,25 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
 // Salvar configurações (admin only)
 router.put('/', authenticate, requireAdmin, async (req, res) => {
   try {
-    const { serpApiKey, evolutionApiUrl, evolutionApiKey, evolutionInstance } = req.body;
+    const { serpApiKey, evolutionApiUrl, evolutionApiKey, evolutionInstance, cnpjApiToken } = req.body;
 
     const updates = [
       ['serp_api_key', serpApiKey],
       ['evolution_api_url', evolutionApiUrl],
       ['evolution_api_key', evolutionApiKey],
-      ['evolution_instance', evolutionInstance]
+      ['evolution_instance', evolutionInstance],
+      ['cnpj_api_token', cnpjApiToken]
     ];
 
     for (const [key, value] of updates) {
-      await db.query(
-        `INSERT INTO settings (key, value, updated_at) 
-         VALUES ($1, $2, NOW())
-         ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
-        [key, value || '']
-      );
+      if (value !== undefined) {
+        await db.query(
+          `INSERT INTO settings (key, value, updated_at) 
+           VALUES ($1, $2, NOW())
+           ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
+          [key, value || '']
+        );
+      }
     }
 
     res.json({ message: 'Configurações salvas com sucesso' });

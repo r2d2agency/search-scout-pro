@@ -9,6 +9,7 @@ const defaultSettings: AdminSettings = {
   evolutionApiUrl: '',
   evolutionApiKey: '',
   evolutionInstance: '',
+  cnpjApiToken: '',
 };
 
 export function useSettings() {

@@ -20,6 +20,7 @@ import SerpKeysPage from "./pages/SerpKeysPage";
 import ApifyKeysPage from "./pages/ApifyKeysPage";
 import FirecrawlKeysPage from "./pages/FirecrawlKeysPage";
 import NotFound from "./pages/NotFound";
+import CnpjPage from "./pages/CnpjPage";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ const App = () => (
                   <Route path="/search" element={<SearchPage />} />
                   <Route path="/leads" element={<SavedLeadsPage />} />
                   <Route path="/pricing" element={<PricingPage />} />
+                  <Route path="/cnpj" element={<CnpjPage />} />
                   <Route path="/admin" element={<AdminPage />} />
                   <Route path="/admin/plans" element={<PlansPage />} />
                   <Route path="/admin/users" element={<UsersPage />} />
