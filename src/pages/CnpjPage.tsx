@@ -159,11 +159,17 @@ export default function CnpjPage() {
 
   // Validation
   const filterValidationError = useMemo(() => {
-    if (searchFilters.razao_social.trim() && !searchFilters.uf) {
-      return 'Ao pesquisar por Razão Social, selecione também o Estado (UF)';
+    if (!searchFilters.uf) {
+      return 'Selecione o Estado (UF) — campo obrigatório';
+    }
+    if (!searchFilters.municipio.trim()) {
+      return 'Informe o Município — campo obrigatório';
+    }
+    if (!searchFilters.cnae.trim() && !searchFilters.razao_social.trim()) {
+      return 'Informe pelo menos CNAE ou Razão Social';
     }
     return null;
-  }, [searchFilters.razao_social, searchFilters.uf]);
+  }, [searchFilters.uf, searchFilters.municipio, searchFilters.cnae, searchFilters.razao_social]);
 
   const dateRangeError = useMemo(() => {
     if (dateFrom && dateTo) {
@@ -227,14 +233,6 @@ export default function CnpjPage() {
 
   // New search: reset accumulated; Load more: append
   const handleSearch = async (page = 1, isNewSearch = false) => {
-    const hasTextFilter = Object.values(searchFilters).some(v => v.trim());
-    const hasDateFilter = dateFrom && dateTo;
-
-    if (!hasTextFilter && !hasDateFilter) {
-      toast({ title: 'Informe ao menos um filtro', variant: 'destructive' });
-      return;
-    }
-
     if (filterValidationError) {
       toast({ title: 'Filtro obrigatório', description: filterValidationError, variant: 'destructive' });
       return;
