@@ -348,19 +348,51 @@ export default function CnpjPage() {
   const exportCnpjResults = (results: any[], filename?: string) => {
     if (results.length === 0) return;
     import('xlsx').then(XLSX => {
-      const data = results.map((r: any) => ({
-        'CNPJ': formatCnpj(`${r.cnpj_basico || ''}${r.cnpj_ordem || ''}${r.cnpj_dv || ''}`),
-        'Razão Social': r.razao_social || '',
-        'Nome Fantasia': r.nome_fantasia || '',
-        'UF': r.uf || '',
-        'Município': r.municipio_nome || r.municipio || '',
-        'CEP': r.cep || '',
-        'Telefone': r.ddd_telefone_1 ? `(${r.ddd_telefone_1})` : '',
-        'Situação': r.situacao_cadastral === '02' ? 'Ativa' : (r.situacao_cadastral || ''),
-        'Data Abertura': r.data_inicio_atividade ? formatDateDisplay(r.data_inicio_atividade) : '',
-        'CNAE Principal': r.cnae_fiscal_principal || '',
-      }));
+      const data = results.map((r: any) => {
+        const socios = Array.isArray(r.socios) ? r.socios.map((s: any) => 
+          `${s.nome || s.nome_socio || ''} (${s.qualificacao || s.qualificacao_socio || ''})`
+        ).join('; ') : (r.socios || '');
+
+        const tel1 = r.ddd_telefone_1 ? `(${r.ddd_telefone_1})` : '';
+        const tel2 = r.ddd_telefone_2 ? `(${r.ddd_telefone_2})` : '';
+        const fax = r.ddd_fax ? `(${r.ddd_fax})` : '';
+
+        return {
+          'CNPJ': formatCnpj(`${r.cnpj_basico || ''}${r.cnpj_ordem || ''}${r.cnpj_dv || ''}`),
+          'Razão Social': r.razao_social || '',
+          'Nome Fantasia': r.nome_fantasia || '',
+          'Situação': r.situacao_cadastral === '02' ? 'Ativa' : (r.situacao_cadastral_descricao || r.situacao_cadastral || ''),
+          'Data Abertura': r.data_inicio_atividade ? formatDateDisplay(r.data_inicio_atividade) : '',
+          'Capital Social': r.capital_social ? `R$ ${Number(r.capital_social).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '',
+          'Natureza Jurídica': r.natureza_juridica_descricao || r.natureza_juridica || '',
+          'Porte': r.porte_empresa_descricao || r.porte || '',
+          'CNAE Principal': r.cnae_fiscal_principal || '',
+          'CNAE Descrição': r.cnae_fiscal_principal_descricao || '',
+          'CNAEs Secundários': Array.isArray(r.cnaes_secundarios) ? r.cnaes_secundarios.map((c: any) => typeof c === 'string' ? c : (c.codigo || c.code || '')).join(', ') : '',
+          'Logradouro': [r.tipo_logradouro, r.logradouro].filter(Boolean).join(' ') || '',
+          'Número': r.numero || '',
+          'Complemento': r.complemento || '',
+          'Bairro': r.bairro || '',
+          'CEP': r.cep || '',
+          'Município': r.municipio_nome || r.municipio || '',
+          'UF': r.uf || '',
+          'Telefone 1': tel1,
+          'Telefone 2': tel2,
+          'Fax': fax,
+          'Email': r.email || r.correio_eletronico || '',
+          'Sócios': socios,
+          'Data Situação Cadastral': r.data_situacao_cadastral || '',
+          'Motivo Situação': r.motivo_situacao_cadastral_descricao || r.motivo_situacao_cadastral || '',
+          'Simples Nacional': r.opcao_pelo_simples === true || r.opcao_pelo_simples === 'S' ? 'Sim' : 'Não',
+          'MEI': r.opcao_pelo_mei === true || r.opcao_pelo_mei === 'S' ? 'Sim' : 'Não',
+        };
+      });
       const ws = XLSX.utils.json_to_sheet(data);
+      // Auto-ajustar largura das colunas
+      const colWidths = Object.keys(data[0] || {}).map(key => ({
+        wch: Math.max(key.length, ...data.map(row => String((row as any)[key] || '').length).slice(0, 50)) + 2
+      }));
+      ws['!cols'] = colWidths;
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'CNPJ');
       XLSX.writeFile(wb, `${filename || 'cnpj_export'}.xlsx`);
