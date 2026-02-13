@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Lead } from '@/types/lead';
 import { LeadsTable } from '@/components/LeadsTable';
 import { LeadsFilters, LeadsFiltersState, WhatsAppStatusFilter } from '@/components/LeadsFilters';
@@ -10,8 +10,8 @@ import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-// Lazy load do mapa para melhor performance
-const LeadsMap = lazy(() => import('@/components/LeadsMap').then(m => ({ default: m.LeadsMap })));
+// Import direto para evitar erro de chunk dinâmico em produção
+import { LeadsMap } from '@/components/LeadsMap';
 
 const LEADS_PER_PAGE = 30;
 
@@ -240,13 +240,7 @@ const SavedLeadsPage = () => {
           </TabsContent>
 
           <TabsContent value="map">
-            <Suspense fallback={
-              <div className="flex justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            }>
               <LeadsMap leads={filteredLeads} />
-            </Suspense>
           </TabsContent>
           
           {/* Paginação */}
