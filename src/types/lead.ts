@@ -38,6 +38,11 @@ export interface SerpDataLinkedin {
   position?: number;
   snippet?: string | null;
   linkedinId?: string | null;
+  fullName?: string | null;
+  jobTitle?: string | null;
+  companyName?: string | null;
+  location?: string | null;
+  profileUrl?: string | null;
 }
 
 export type SerpData = SerpDataOrganic | SerpDataLocal | SerpDataLinkedin | any;

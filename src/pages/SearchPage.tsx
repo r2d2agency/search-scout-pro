@@ -834,10 +834,18 @@ const SearchPage = () => {
                           </span>
                         )}
                         {isLinkedin && (
-                          <span className="text-sm text-muted-foreground flex items-center gap-1">
-                            <Users className="h-3 w-3" />
-                            LinkedIn
-                          </span>
+                          <>
+                            <span className="text-sm text-muted-foreground flex items-center gap-1">
+                              <Users className="h-3 w-3" />
+                              LinkedIn
+                            </span>
+                            {serpData.location && (
+                              <span className="text-sm text-muted-foreground flex items-center gap-1 border-l pl-2 ml-1 border-border/50">
+                                <MapPin className="h-3 w-3" />
+                                {serpData.location}
+                              </span>
+                            )}
+                          </>
                         )}
                         {serpData.isVerified && (
                           <BadgeCheck className="h-4 w-4 text-primary" />
@@ -854,6 +862,15 @@ const SearchPage = () => {
                         )}
                       </div>
 
+                      {/* Cargo e Empresa (LinkedIn) */}
+                      {isLinkedin && (serpData.jobTitle || serpData.companyName) && (
+                        <div className="text-sm text-foreground/90 flex items-center gap-1 flex-wrap -mt-1">
+                          {serpData.jobTitle && <span className="font-medium">{serpData.jobTitle}</span>}
+                          {serpData.jobTitle && serpData.companyName && <span className="text-muted-foreground mx-1">•</span>}
+                          {serpData.companyName && <span className="text-muted-foreground">{serpData.companyName}</span>}
+                        </div>
+                      )}
+
                       {/* Bio do Instagram ou Snippet do LinkedIn */}
                       {((isInstagram && serpData.biography) || (isLinkedin && serpData.snippet)) && (
                         <div className="text-sm text-muted-foreground">
@@ -862,8 +879,20 @@ const SearchPage = () => {
                       )}
 
                       {/* Dados de contato extraídos da bio */}
-                      {(isInstagram || isLinkedin) && (lead.phone || lead.email || lead.website || lead.whatsapp) && (
+                      {(isInstagram || isLinkedin) && (lead.phone || lead.email || lead.website || lead.whatsapp || serpData.profileUrl) && (
                         <div className="flex flex-wrap gap-2 mt-1">
+                          {/* LinkedIn Profile Link */}
+                          {isLinkedin && serpData.profileUrl && (
+                            <a 
+                              href={serpData.profileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-[#0077b5]/10 text-[#0077b5] rounded text-xs hover:bg-[#0077b5]/20 font-medium"
+                            >
+                              <Users className="h-3 w-3" />
+                              Ver Perfil
+                            </a>
+                          )}
                           {/* WhatsApp confirmado (de link wa.me) */}
                           {lead.whatsapp && (
                             <a 

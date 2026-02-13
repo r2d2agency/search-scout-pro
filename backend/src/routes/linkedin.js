@@ -190,16 +190,40 @@ function createLeadFromSearchResult(result, linkedinId, searchTerm, position) {
   const description = result.description || '';
   const url = result.url || '';
 
-  // Tentar extrair nome e cargo do título
+  // Tentar extrair nome, cargo e empresa do título
   // Formato comum: "Nome Sobrenome - Cargo - Empresa | LinkedIn"
+  // Ou: "Nome Sobrenome - Cargo | LinkedIn"
   let fullName = linkedinId;
   let jobTitle = null;
+  let companyName = null;
+  let location = null;
   
-  const parts = title.split(' - ');
+  // Limpar sufixos comuns
+  const cleanTitle = title.replace(' | LinkedIn', '').replace(' | LinkedIn Brasil', '');
+  const parts = cleanTitle.split(' - ');
+  
   if (parts.length > 0) {
-    fullName = parts[0].replace(' | LinkedIn', '').trim();
-    if (parts.length > 1) {
-        jobTitle = parts[1].trim();
+    fullName = parts[0].trim();
+  }
+  
+  if (parts.length > 1) {
+    jobTitle = parts[1].trim();
+  }
+
+  if (parts.length > 2) {
+    companyName = parts[2].trim();
+  }
+
+  // Tentar extrair localização do snippet se não estiver no título
+  // Snippets do LinkedIn costumam começar com a localização ou tê-la no início
+  // Ex: "São Paulo, Brasil. Desenvolvedor..."
+  const locationMatch = description.match(/^([^.,]+(?:, [^.,]+)?)\./);
+  if (locationMatch) {
+    location = locationMatch[1].trim();
+  } else if (description.includes('Location: ')) {
+    const locParts = description.split('Location: ');
+    if (locParts.length > 1) {
+      location = locParts[1].split(/[.,]/)[0].trim();
     }
   }
 
@@ -208,7 +232,7 @@ function createLeadFromSearchResult(result, linkedinId, searchTerm, position) {
 
   return {
     id: `li-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    company: fullName, // No contexto de pessoa, company é o nome
+    company: fullName, // Mantemos fullName aqui para compatibilidade com card genérico se necessário
     jobTitle: jobTitle,
     website: contactData.website || url,
     phone: contactData.phone,
@@ -218,7 +242,7 @@ function createLeadFromSearchResult(result, linkedinId, searchTerm, position) {
     source: 'LinkedIn',
     searchTerm,
     createdAt: new Date().toISOString(),
-    address: null,
+    address: location, // Usar o campo address para localização
     rating: null,
     ratingCount: null,
     category: 'LinkedIn Profile',
@@ -227,7 +251,10 @@ function createLeadFromSearchResult(result, linkedinId, searchTerm, position) {
       position,
       username: linkedinId,
       fullName: fullName,
-      biography: description,
+      jobTitle: jobTitle,
+      companyName: companyName,
+      location: location,
+      snippet: description,
       profileUrl: url,
       whatsappFromLink: contactData.whatsappFromLink,
       sourceUrl: url,
