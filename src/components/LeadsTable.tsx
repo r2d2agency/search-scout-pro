@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Lead } from '@/types/lead';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import {
   Table,
   TableBody,
@@ -86,6 +88,7 @@ export function LeadsTable({ leads, onVerifyWhatsApp, verifyingId, onDelete }: L
               <TableHead>Telefone</TableHead>
               <TableHead>WhatsApp</TableHead>
               <TableHead>Email</TableHead>
+              <TableHead>Data</TableHead>
               <TableHead>Fonte</TableHead>
               <TableHead className="w-[100px]">Ações</TableHead>
             </TableRow>
@@ -121,6 +124,13 @@ export function LeadsTable({ leads, onVerifyWhatsApp, verifyingId, onDelete }: L
                     >
                       {lead.email}
                     </a>
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  )}
+                </TableCell>
+                <TableCell className="whitespace-nowrap">
+                  {lead.createdAt ? (
+                    format(new Date(lead.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR })
                   ) : (
                     <span className="text-muted-foreground">-</span>
                   )}

@@ -163,8 +163,17 @@ export const leadsApi = {
 
     if (filters) {
       if (filters.searchTerm) params.append('searchTerm', filters.searchTerm);
-      if (filters.dateFrom) params.append('dateFrom', filters.dateFrom.toISOString());
-      if (filters.dateTo) params.append('dateTo', filters.dateTo.toISOString());
+      // Format dates as YYYY-MM-DD to respect local date selection and ensure backend handles end-of-day correctly
+      if (filters.dateFrom) {
+        const d = filters.dateFrom;
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        params.append('dateFrom', dateStr);
+      }
+      if (filters.dateTo) {
+        const d = filters.dateTo;
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        params.append('dateTo', dateStr);
+      }
       if (filters.whatsappStatus) params.append('whatsappStatus', filters.whatsappStatus);
       if (filters.searchQuery) params.append('searchQuery', filters.searchQuery);
       if (filters.all) params.append('all', 'true');
