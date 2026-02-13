@@ -65,10 +65,12 @@ async function checkWhatsApp(phone, evolutionConfig) {
 
 // Buscar empresa por nome fantasia + endereço no Google Places (Serper.dev)
 async function searchByAddress(lead, apiKey) {
-  // Verificar se tem nome fantasia - se não tiver, pular
+  // Usar nome fantasia; se não tiver, usar razão social como fallback
   const nomeFantasia = (lead.nome_fantasia || '').trim();
-  if (!nomeFantasia) {
-    return { found: false, reason: 'Sem nome fantasia', skipped: true };
+  const razaoSocial = (lead.razao_social || '').trim();
+  const nomeBusca = nomeFantasia || razaoSocial;
+  if (!nomeBusca) {
+    return { found: false, reason: 'Sem nome fantasia ou razão social', skipped: true };
   }
 
   // Montar query: nome fantasia + endereço
@@ -86,7 +88,7 @@ async function searchByAddress(lead, apiKey) {
   }
 
   // Combinar nome fantasia + endereço para busca mais precisa
-  const searchQuery = `${nomeFantasia} ${addressStr}`;
+  const searchQuery = `${nomeBusca} ${addressStr}`;
 
   try {
     const response = await fetch('https://google.serper.dev/places', {
