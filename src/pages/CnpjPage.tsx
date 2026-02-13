@@ -986,7 +986,6 @@ export default function CnpjPage() {
                       <TableHead>Telefone</TableHead>
                       <TableHead>Abertura</TableHead>
                       <TableHead>Situação</TableHead>
-                      <TableHead className="w-[80px]">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1034,20 +1033,6 @@ export default function CnpjPage() {
                             <Badge variant={r.situacao_cadastral === '02' ? 'default' : 'secondary'} className="text-xs">
                               {r.situacao_cadastral === '02' ? 'Ativa' : r.situacao_cadastral}
                             </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              title="Pesquisar no Google"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                searchOnGoogle(r.nome_fantasia || r.razao_social);
-                              }}
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </Button>
                           </TableCell>
                         </TableRow>
                       );
@@ -1226,7 +1211,7 @@ export default function CnpjPage() {
                         <TableHead>Telefone</TableHead>
                         <TableHead>Abertura</TableHead>
                         <TableHead>Situação</TableHead>
-                        <TableHead className="w-[80px]">Ações</TableHead>
+                        
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1262,17 +1247,6 @@ export default function CnpjPage() {
                               <Badge variant={r.situacao_cadastral === '02' ? 'default' : 'secondary'} className="text-xs">
                                 {r.situacao_cadastral === '02' ? 'Ativa' : r.situacao_cadastral || '-'}
                               </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                title="Pesquisar no Google"
-                                onClick={() => searchOnGoogle(r.nome_fantasia || r.razao_social)}
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                              </Button>
                             </TableCell>
                           </TableRow>
                         );
