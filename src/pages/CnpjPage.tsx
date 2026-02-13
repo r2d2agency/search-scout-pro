@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { cnpjApi } from '@/lib/apiClient';
+import { useState, useMemo, useEffect } from 'react';
+import { cnpjApi, savedSearchesApi } from '@/lib/apiClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -37,13 +37,20 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
-  Filter
+  Filter,
+  Phone,
+  ExternalLink,
+  Save,
+  BookmarkCheck,
+  Trash2,
+  SearchIcon,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { exportToXLSX } from '@/lib/api';
 import { format, differenceInDays, subDays, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { SearchProgress } from '@/components/SearchProgress';
 
 const UF_LIST = [
   'AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT',
@@ -53,7 +60,6 @@ const UF_LIST = [
 const MAX_RANGE_DAYS = 366;
 const MAX_RESULTS = 100;
 
-// Atalhos de período
 const DATE_PRESETS = [
   { label: 'Últimos 7 dias', getValue: () => ({ from: subDays(new Date(), 7), to: new Date() }) },
   { label: 'Últimos 30 dias', getValue: () => ({ from: subDays(new Date(), 30), to: new Date() }) },
@@ -91,7 +97,42 @@ export default function CnpjPage() {
   const [searchPage, setSearchPage] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
 
-  // Validação do range de datas
+  // Saved CNPJ queries state
+  const [savedQueries, setSavedQueries] = useState<any[]>([]);
+  const [isSavedLoading, setIsSavedLoading] = useState(false);
+  const [savedFilter, setSavedFilter] = useState('');
+  const [viewingSaved, setViewingSaved] = useState<any>(null);
+  const [saveName, setSaveName] = useState('');
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+
+  // Load saved queries when tab changes
+  useEffect(() => {
+    if (activeTab === 'saved') {
+      loadSavedQueries();
+    }
+  }, [activeTab]);
+
+  const loadSavedQueries = async () => {
+    setIsSavedLoading(true);
+    try {
+      const data = await savedSearchesApi.list();
+      // Filter only CNPJ-type saved searches
+      setSavedQueries(data.filter((s: any) => s.query?.startsWith('cnpj:')));
+    } catch (error: any) {
+      console.error('Erro ao carregar consultas salvas:', error);
+    } finally {
+      setIsSavedLoading(false);
+    }
+  };
+
+  // Validation: if razao_social is filled, UF is required
+  const filterValidationError = useMemo(() => {
+    if (searchFilters.razao_social.trim() && !searchFilters.uf) {
+      return 'Ao pesquisar por Razão Social, selecione também o Estado (UF)';
+    }
+    return null;
+  }, [searchFilters.razao_social, searchFilters.uf]);
+
   const dateRangeError = useMemo(() => {
     if (dateFrom && dateTo) {
       const diff = differenceInDays(dateTo, dateFrom);
@@ -111,7 +152,6 @@ export default function CnpjPage() {
     return null;
   }, [dateFrom, dateTo]);
 
-  // Format CNPJ
   const formatCnpj = (value: string) => {
     const digits = value.replace(/\D/g, '').slice(0, 14);
     return digits
@@ -163,6 +203,11 @@ export default function CnpjPage() {
       return;
     }
 
+    if (filterValidationError) {
+      toast({ title: 'Filtro obrigatório', description: filterValidationError, variant: 'destructive' });
+      return;
+    }
+
     if (dateRangeError) {
       toast({ title: 'Erro no período', description: dateRangeError, variant: 'destructive' });
       return;
@@ -187,13 +232,59 @@ export default function CnpjPage() {
     }
   };
 
+  const handleSaveQuery = async () => {
+    if (!saveName.trim()) {
+      toast({ title: 'Digite um nome para salvar', variant: 'destructive' });
+      return;
+    }
+    try {
+      const queryDesc = `cnpj:${JSON.stringify({ ...searchFilters, dateFrom: dateFrom?.toISOString(), dateTo: dateTo?.toISOString() })}`;
+      await savedSearchesApi.save({
+        name: saveName,
+        query: queryDesc,
+        leads: searchResults,
+      });
+      toast({ title: 'Consulta salva!', description: `"${saveName}" salva com ${searchResults.length} resultados` });
+      setSaveName('');
+      setShowSaveDialog(false);
+    } catch (error: any) {
+      toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteSaved = async (id: string) => {
+    try {
+      await savedSearchesApi.delete(id);
+      setSavedQueries(prev => prev.filter(q => q.id !== id));
+      if (viewingSaved?.id === id) setViewingSaved(null);
+      toast({ title: 'Consulta removida' });
+    } catch (error: any) {
+      toast({ title: 'Erro ao remover', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleViewSaved = async (id: string) => {
+    try {
+      const data = await savedSearchesApi.get(id);
+      const leads = typeof data.leads === 'string' ? JSON.parse(data.leads) : data.leads;
+      setViewingSaved({ ...data, leads });
+    } catch (error: any) {
+      toast({ title: 'Erro ao carregar', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const searchOnGoogle = (nomeFantasia: string) => {
+    if (!nomeFantasia) return;
+    window.open(`https://www.google.com/search?q=${encodeURIComponent(nomeFantasia)}`, '_blank');
+  };
+
   const handleExport = () => {
     if (searchResults.length === 0) return;
     const formatted = searchResults.map((r: any, idx: number) => ({
       id: String(idx),
       company: r.razao_social || '',
       website: null,
-      phone: null,
+      phone: r.ddd_telefone_1 ? `(${r.ddd_telefone_1})` : null,
       whatsapp: null,
       email: null,
       whatsappValid: null,
@@ -205,6 +296,27 @@ export default function CnpjPage() {
     exportToXLSX(formatted as any);
     toast({ title: 'Exportado com sucesso!' });
   };
+
+  // Filtered saved queries
+  const filteredSaved = useMemo(() => {
+    if (!savedFilter.trim()) return savedQueries;
+    const term = savedFilter.toLowerCase();
+    return savedQueries.filter(q => q.name.toLowerCase().includes(term));
+  }, [savedQueries, savedFilter]);
+
+  // Filtered saved results (when viewing a saved query)
+  const [savedResultFilter, setSavedResultFilter] = useState('');
+  const filteredSavedResults = useMemo(() => {
+    if (!viewingSaved?.leads) return [];
+    if (!savedResultFilter.trim()) return viewingSaved.leads;
+    const term = savedResultFilter.toLowerCase();
+    return viewingSaved.leads.filter((r: any) =>
+      (r.razao_social || '').toLowerCase().includes(term) ||
+      (r.nome_fantasia || '').toLowerCase().includes(term) ||
+      (r.municipio_nome || r.municipio || '').toLowerCase().includes(term) ||
+      (r.uf || '').toLowerCase().includes(term)
+    );
+  }, [viewingSaved, savedResultFilter]);
 
   return (
     <div className="space-y-6">
@@ -225,6 +337,10 @@ export default function CnpjPage() {
           <TabsTrigger value="search" className="flex items-center gap-2">
             <Search className="h-4 w-4" />
             Pesquisa Avançada
+          </TabsTrigger>
+          <TabsTrigger value="saved" className="flex items-center gap-2">
+            <BookmarkCheck className="h-4 w-4" />
+            Salvos
           </TabsTrigger>
         </TabsList>
 
@@ -252,6 +368,10 @@ export default function CnpjPage() {
                   Consultar
                 </Button>
               </div>
+
+              {isLookupLoading && (
+                <SearchProgress isLoading={true} source="google" />
+              )}
             </CardContent>
           </Card>
 
@@ -284,7 +404,7 @@ export default function CnpjPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <MapPin className="h-5 w-5" />
-                    Endereço
+                    Endereço & Contato
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -294,6 +414,10 @@ export default function CnpjPage() {
                   <InfoRow label="Município" value={lookupResult.estabelecimento?.municipio_nome} />
                   <InfoRow label="UF" value={lookupResult.estabelecimento?.uf} />
                   <InfoRow label="CEP" value={lookupResult.estabelecimento?.cep} />
+                  <Separator className="my-2" />
+                  <InfoRow label="Telefone 1" value={lookupResult.estabelecimento?.ddd_telefone_1 ? `(${lookupResult.estabelecimento.ddd_telefone_1})` : null} />
+                  <InfoRow label="Telefone 2" value={lookupResult.estabelecimento?.ddd_telefone_2 ? `(${lookupResult.estabelecimento.ddd_telefone_2})` : null} />
+                  <InfoRow label="E-mail" value={lookupResult.estabelecimento?.email} />
                 </CardContent>
               </Card>
 
@@ -374,9 +498,14 @@ export default function CnpjPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>UF</Label>
+                    <Label className="flex items-center gap-1">
+                      UF
+                      {searchFilters.razao_social.trim() && (
+                        <span className="text-destructive text-xs">*obrigatório</span>
+                      )}
+                    </Label>
                     <Select value={searchFilters.uf || 'all'} onValueChange={(v) => setSearchFilters(f => ({ ...f, uf: v === 'all' ? '' : v }))}>
-                      <SelectTrigger>
+                      <SelectTrigger className={cn(filterValidationError && 'border-destructive')}>
                         <SelectValue placeholder="Todos" />
                       </SelectTrigger>
                       <SelectContent>
@@ -403,6 +532,14 @@ export default function CnpjPage() {
                     </Select>
                   </div>
                 </div>
+
+                {/* Validation error */}
+                {filterValidationError && (
+                  <div className="flex items-center gap-2 mt-3 text-sm text-destructive bg-destructive/10 p-3 rounded-lg">
+                    <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                    <span>{filterValidationError}</span>
+                  </div>
+                )}
               </div>
 
               <Separator />
@@ -414,7 +551,6 @@ export default function CnpjPage() {
                   Data de Abertura (máx. 1 ano de intervalo)
                 </Label>
                 
-                {/* Atalhos de período */}
                 <div className="flex flex-wrap gap-2 mb-4">
                   {DATE_PRESETS.map((preset) => (
                     <Button
@@ -439,7 +575,6 @@ export default function CnpjPage() {
                   )}
                 </div>
 
-                {/* Date pickers */}
                 <div className="flex flex-wrap items-end gap-4">
                   <div className="space-y-2">
                     <Label className="text-sm">De</Label>
@@ -447,25 +582,14 @@ export default function CnpjPage() {
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
-                          className={cn(
-                            "w-[200px] justify-start text-left font-normal",
-                            !dateFrom && "text-muted-foreground"
-                          )}
+                          className={cn("w-[200px] justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
                           {dateFrom ? format(dateFrom, "dd/MM/yyyy", { locale: ptBR }) : "Data inicial"}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={dateFrom}
-                          onSelect={setDateFrom}
-                          disabled={(date) => date > new Date()}
-                          initialFocus
-                          className={cn("p-3 pointer-events-auto")}
-                          locale={ptBR}
-                        />
+                        <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} disabled={(date) => date > new Date()} initialFocus className="p-3 pointer-events-auto" locale={ptBR} />
                       </PopoverContent>
                     </Popover>
                   </div>
@@ -476,30 +600,18 @@ export default function CnpjPage() {
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
-                          className={cn(
-                            "w-[200px] justify-start text-left font-normal",
-                            !dateTo && "text-muted-foreground"
-                          )}
+                          className={cn("w-[200px] justify-start text-left font-normal", !dateTo && "text-muted-foreground")}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
                           {dateTo ? format(dateTo, "dd/MM/yyyy", { locale: ptBR }) : "Data final"}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={dateTo}
-                          onSelect={setDateTo}
-                          disabled={(date) => date > new Date()}
-                          initialFocus
-                          className={cn("p-3 pointer-events-auto")}
-                          locale={ptBR}
-                        />
+                        <Calendar mode="single" selected={dateTo} onSelect={setDateTo} disabled={(date) => date > new Date()} initialFocus className="p-3 pointer-events-auto" locale={ptBR} />
                       </PopoverContent>
                     </Popover>
                   </div>
 
-                  {/* Info do range */}
                   {dateRangeLabel && !dateRangeError && (
                     <Badge variant="secondary" className="h-8">
                       <CalendarIcon className="h-3 w-3 mr-1" />
@@ -508,7 +620,6 @@ export default function CnpjPage() {
                   )}
                 </div>
 
-                {/* Erro de validação */}
                 {dateRangeError && (
                   <div className="flex items-center gap-2 mt-3 text-sm text-destructive bg-destructive/10 p-3 rounded-lg">
                     <AlertCircle className="h-4 w-4 flex-shrink-0" />
@@ -523,17 +634,23 @@ export default function CnpjPage() {
               <div className="flex items-center gap-3">
                 <Button 
                   onClick={() => handleSearch(1)} 
-                  disabled={isSearchLoading || !!dateRangeError} 
+                  disabled={isSearchLoading || !!dateRangeError || !!filterValidationError} 
                   className="px-6"
                 >
                   {isSearchLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Search className="h-4 w-4 mr-2" />}
                   Pesquisar
                 </Button>
                 {searchResults.length > 0 && (
-                  <Button variant="outline" onClick={handleExport}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Exportar XLSX
-                  </Button>
+                  <>
+                    <Button variant="outline" onClick={handleExport}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Exportar XLSX
+                    </Button>
+                    <Button variant="outline" onClick={() => setShowSaveDialog(true)}>
+                      <Save className="h-4 w-4 mr-2" />
+                      Salvar Consulta
+                    </Button>
+                  </>
                 )}
                 <span className="text-xs text-muted-foreground ml-auto">
                   Máx. {MAX_RESULTS} resultados por página
@@ -542,8 +659,37 @@ export default function CnpjPage() {
             </CardContent>
           </Card>
 
+          {/* Save dialog */}
+          {showSaveDialog && (
+            <Card className="border-primary/50">
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-3">
+                  <Input
+                    placeholder="Nome da consulta (ex: Restaurantes SP 2024)"
+                    value={saveName}
+                    onChange={(e) => setSaveName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSaveQuery()}
+                    className="flex-1"
+                  />
+                  <Button onClick={handleSaveQuery} size="sm">
+                    <Save className="h-4 w-4 mr-1" />
+                    Salvar
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setShowSaveDialog(false)}>
+                    Cancelar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Progress bar */}
+          {isSearchLoading && (
+            <SearchProgress isLoading={true} source="google" />
+          )}
+
           {/* Resultados */}
-          {searchResults.length > 0 && (
+          {searchResults.length > 0 && !isSearchLoading && (
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -566,27 +712,42 @@ export default function CnpjPage() {
                       <TableHead>Nome Fantasia</TableHead>
                       <TableHead>UF</TableHead>
                       <TableHead>Município</TableHead>
+                      <TableHead>Telefone</TableHead>
                       <TableHead>Abertura</TableHead>
                       <TableHead>Situação</TableHead>
+                      <TableHead className="w-[80px]">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {searchResults.map((r: any, i: number) => (
-                      <TableRow key={i} className="cursor-pointer hover:bg-muted/50" onClick={() => {
-                        const fullCnpj = `${r.cnpj_basico || ''}${r.cnpj_ordem || ''}${r.cnpj_dv || ''}`;
-                        if (fullCnpj.length === 14) {
-                          setCnpj(formatCnpj(fullCnpj));
-                          setActiveTab('lookup');
-                          handleLookupDirect(fullCnpj);
-                        }
-                      }}>
-                        <TableCell className="font-mono text-sm">
+                      <TableRow key={i}>
+                        <TableCell 
+                          className="font-mono text-sm cursor-pointer hover:text-primary"
+                          onClick={() => {
+                            const fullCnpj = `${r.cnpj_basico || ''}${r.cnpj_ordem || ''}${r.cnpj_dv || ''}`;
+                            if (fullCnpj.length === 14) {
+                              setCnpj(formatCnpj(fullCnpj));
+                              setActiveTab('lookup');
+                              handleLookupDirect(fullCnpj);
+                            }
+                          }}
+                        >
                           {formatCnpj(`${r.cnpj_basico || ''}${r.cnpj_ordem || ''}${r.cnpj_dv || ''}`)}
                         </TableCell>
                         <TableCell className="font-medium max-w-[200px] truncate">{r.razao_social}</TableCell>
                         <TableCell className="max-w-[150px] truncate">{r.nome_fantasia || '-'}</TableCell>
                         <TableCell>{r.uf}</TableCell>
                         <TableCell>{r.municipio_nome || r.municipio || '-'}</TableCell>
+                        <TableCell>
+                          {r.ddd_telefone_1 ? (
+                            <span className="flex items-center gap-1 text-sm">
+                              <Phone className="h-3 w-3 text-muted-foreground" />
+                              ({r.ddd_telefone_1})
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">-</span>
+                          )}
+                        </TableCell>
                         <TableCell className="whitespace-nowrap text-sm">
                           {r.data_inicio_atividade ? formatDateDisplay(r.data_inicio_atividade) : '-'}
                         </TableCell>
@@ -594,6 +755,20 @@ export default function CnpjPage() {
                           <Badge variant={r.situacao_cadastral === '02' ? 'default' : 'secondary'} className="text-xs">
                             {r.situacao_cadastral === '02' ? 'Ativa' : r.situacao_cadastral}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="Pesquisar no Google"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              searchOnGoogle(r.nome_fantasia || r.razao_social);
+                            }}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -620,6 +795,161 @@ export default function CnpjPage() {
                 </div>
               </CardContent>
             </Card>
+          )}
+        </TabsContent>
+
+        {/* Tab: Consultas Salvas */}
+        <TabsContent value="saved" className="space-y-4">
+          {viewingSaved ? (
+            <>
+              {/* Viewing saved results */}
+              <Card className="neon-border">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <BookmarkCheck className="h-5 w-5" />
+                        {viewingSaved.name}
+                      </CardTitle>
+                      <CardDescription>
+                        {viewingSaved.results_count} resultados · Salvo em {viewingSaved.created_at ? new Date(viewingSaved.created_at).toLocaleDateString('pt-BR') : '-'}
+                      </CardDescription>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => { setViewingSaved(null); setSavedResultFilter(''); }}>
+                      ← Voltar
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <Input
+                        placeholder="Filtrar resultados por nome, cidade, UF..."
+                        value={savedResultFilter}
+                        onChange={(e) => setSavedResultFilter(e.target.value)}
+                      />
+                    </div>
+                    <Badge variant="secondary" className="h-10 px-3 flex items-center">
+                      {filteredSavedResults.length} de {viewingSaved.leads?.length || 0}
+                    </Badge>
+                  </div>
+
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>CNPJ</TableHead>
+                        <TableHead>Razão Social</TableHead>
+                        <TableHead>Nome Fantasia</TableHead>
+                        <TableHead>UF</TableHead>
+                        <TableHead>Município</TableHead>
+                        <TableHead>Telefone</TableHead>
+                        <TableHead>Situação</TableHead>
+                        <TableHead className="w-[80px]">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredSavedResults.map((r: any, i: number) => (
+                        <TableRow key={i}>
+                          <TableCell className="font-mono text-sm">
+                            {formatCnpj(`${r.cnpj_basico || ''}${r.cnpj_ordem || ''}${r.cnpj_dv || ''}`)}
+                          </TableCell>
+                          <TableCell className="font-medium max-w-[200px] truncate">{r.razao_social}</TableCell>
+                          <TableCell className="max-w-[150px] truncate">{r.nome_fantasia || '-'}</TableCell>
+                          <TableCell>{r.uf}</TableCell>
+                          <TableCell>{r.municipio_nome || r.municipio || '-'}</TableCell>
+                          <TableCell>
+                            {r.ddd_telefone_1 ? (
+                              <span className="flex items-center gap-1 text-sm">
+                                <Phone className="h-3 w-3 text-muted-foreground" />
+                                ({r.ddd_telefone_1})
+                              </span>
+                            ) : '-'}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={r.situacao_cadastral === '02' ? 'default' : 'secondary'} className="text-xs">
+                              {r.situacao_cadastral === '02' ? 'Ativa' : r.situacao_cadastral || '-'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              title="Pesquisar no Google"
+                              onClick={() => searchOnGoogle(r.nome_fantasia || r.razao_social)}
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {filteredSavedResults.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                            Nenhum resultado encontrado com esse filtro
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <>
+              {/* List of saved queries */}
+              <Card className="neon-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BookmarkCheck className="h-5 w-5" />
+                    Consultas CNPJ Salvas
+                  </CardTitle>
+                  <CardDescription>Acesse resultados de consultas anteriores sem gastar novas buscas</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Input
+                    placeholder="Filtrar por nome..."
+                    value={savedFilter}
+                    onChange={(e) => setSavedFilter(e.target.value)}
+                  />
+
+                  {isSavedLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : filteredSaved.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <BookmarkCheck className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                      <p>Nenhuma consulta salva</p>
+                      <p className="text-xs mt-1">Use a aba "Pesquisa Avançada" e clique em "Salvar Consulta"</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {filteredSaved.map((q: any) => (
+                        <div key={q.id} className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors">
+                          <div className="flex-1 cursor-pointer" onClick={() => handleViewSaved(q.id)}>
+                            <p className="font-medium">{q.name}</p>
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                              <span>{q.results_count} resultados</span>
+                              <span>·</span>
+                              <span>{q.created_at ? new Date(q.created_at).toLocaleDateString('pt-BR') : '-'}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleViewSaved(q.id)}>
+                              <SearchIcon className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteSaved(q.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </>
           )}
         </TabsContent>
       </Tabs>
