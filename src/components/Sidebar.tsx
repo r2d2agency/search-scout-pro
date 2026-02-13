@@ -1,7 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { 
   Search, 
-  Settings, 
   Database, 
   LayoutDashboard,
   Users,
@@ -21,7 +20,6 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/search', icon: Search, label: 'Pesquisar' },
   { to: '/leads', icon: Database, label: 'Leads Salvos' },
-  { to: '/settings', icon: Settings, label: 'Configurações' },
   { to: '/pricing', icon: DollarSign, label: 'Planos' },
 ];
 

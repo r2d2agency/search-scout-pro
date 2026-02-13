@@ -19,7 +19,6 @@ import PricingPage from "./pages/PricingPage";
 import SerpKeysPage from "./pages/SerpKeysPage";
 import ApifyKeysPage from "./pages/ApifyKeysPage";
 import FirecrawlKeysPage from "./pages/FirecrawlKeysPage";
-import UserSettingsPage from "./pages/UserSettingsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,7 +42,6 @@ const App = () => (
                   <Route path="/" element={<DashboardPage />} />
                   <Route path="/search" element={<SearchPage />} />
                   <Route path="/leads" element={<SavedLeadsPage />} />
-                  <Route path="/settings" element={<UserSettingsPage />} />
                   <Route path="/pricing" element={<PricingPage />} />
                   <Route path="/admin" element={<AdminPage />} />
                   <Route path="/admin/plans" element={<PlansPage />} />
