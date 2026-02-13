@@ -97,15 +97,28 @@ router.post('/', authenticate, requireAdmin, async (req, res) => {
 });
 
 // Atualizar usuário
-router.put('/:id', authenticate, requireAdmin, async (req, res) => {
+router.put('/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, role, planId, password } = req.body;
+    let { name, role, planId, password } = req.body;
 
-    // Verificar permissão (admin só pode editar usuários que criou)
-    if (req.user.role !== 'superadmin') {
+    // Verificar permissão
+    // Superadmin: tudo
+    // Admin: apenas usuários que criou ou a si mesmo
+    // User: apenas a si mesmo
+    
+    const isSelf = req.user.id === id;
+    const isAdmin = req.user.role === 'admin';
+    const isSuperAdmin = req.user.role === 'superadmin';
+
+    if (!isSelf && !isAdmin && !isSuperAdmin) {
+      return res.status(403).json({ message: 'Você não tem permissão para editar este usuário' });
+    }
+
+    // Se for admin (não super), verificar se criou o usuário (caso não seja ele mesmo)
+    if (isAdmin && !isSelf) {
       const checkResult = await db.query(
-        'SELECT id FROM users WHERE id = $1 AND (created_by = $2 OR id = $2)',
+        'SELECT id FROM users WHERE id = $1 AND created_by = $2',
         [id, req.user.id]
       );
       if (checkResult.rows.length === 0) {
@@ -113,9 +126,15 @@ router.put('/:id', authenticate, requireAdmin, async (req, res) => {
       }
     }
 
+    // Proteção de campos sensíveis: Apenas admins podem mudar role e plano
+    if (!isAdmin && !isSuperAdmin) {
+      role = undefined;
+      planId = undefined;
+    }
+
     // Não permitir mudar role para superadmin
     let finalRole = role;
-    if (role === 'superadmin' && req.user.role !== 'superadmin') {
+    if (role === 'superadmin' && !isSuperAdmin) {
       finalRole = 'admin';
     }
 

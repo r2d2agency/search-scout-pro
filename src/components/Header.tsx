@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, LogOut, CreditCard, Clock } from 'lucide-react';
+import { User, LogOut, CreditCard, Clock, Key, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { usersApi } from '@/lib/apiClient';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast } from '@/hooks/use-toast';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,11 +15,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export function Header() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // Password Change State
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -41,6 +59,36 @@ export function Header() {
       second: '2-digit',
       timeZone: 'America/Sao_Paulo'
     });
+  };
+
+  const handlePasswordChange = async () => {
+    if (!newPassword || !confirmPassword) {
+      toast({ title: 'Preencha todos os campos', variant: 'destructive' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ title: 'As senhas não coincidem', variant: 'destructive' });
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      if (user?.id) {
+        await usersApi.update(user.id, { password: newPassword });
+        toast({ title: 'Senha atualizada com sucesso!' });
+        setShowPasswordModal(false);
+        setNewPassword('');
+        setConfirmPassword('');
+      }
+    } catch (error) {
+      toast({ 
+        title: 'Erro ao atualizar senha', 
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive' 
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (!user) return null;
@@ -84,6 +132,10 @@ export function Header() {
             <CreditCard className="mr-2 h-4 w-4" />
             Meu Plano
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setShowPasswordModal(true)}>
+            <Key className="mr-2 h-4 w-4" />
+            Trocar Senha
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={logout} className="text-destructive">
             <LogOut className="mr-2 h-4 w-4" />
@@ -91,6 +143,46 @@ export function Header() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <Dialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Trocar Senha</DialogTitle>
+            <DialogDescription>
+              Digite sua nova senha abaixo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-password">Nova Senha</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">Confirmar Senha</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPasswordModal(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handlePasswordChange} disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </header>
   );
 }
