@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -52,6 +51,8 @@ import {
   Zap,
   MessageCircle,
   Globe,
+  Check,
+  ChevronsUpDown,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -60,6 +61,19 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { SearchProgress } from '@/components/SearchProgress';
 import { Progress } from '@/components/ui/progress';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 
 const UF_LIST = [
   'AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT',
@@ -126,6 +140,28 @@ export default function CnpjPage() {
   const [savedDateTo, setSavedDateTo] = useState<Date | undefined>(undefined);
   // Selection for saved results
   const [selectedSavedIds, setSelectedSavedIds] = useState<Set<string>>(new Set());
+
+  // Municipality autocomplete
+  const [municipios, setMunicipios] = useState<string[]>([]);
+  const [isMunicipiosLoading, setIsMunicipiosLoading] = useState(false);
+  const [municipioOpen, setMunicipioOpen] = useState(false);
+
+  // Fetch municipalities from IBGE API when UF changes
+  useEffect(() => {
+    if (!searchFilters.uf) {
+      setMunicipios([]);
+      setSearchFilters(f => ({ ...f, municipio: '' }));
+      return;
+    }
+    setIsMunicipiosLoading(true);
+    fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${searchFilters.uf}/municipios?orderBy=nome`)
+      .then(res => res.json())
+      .then((data: any[]) => {
+        setMunicipios(data.map((m: any) => m.nome));
+      })
+      .catch(() => setMunicipios([]))
+      .finally(() => setIsMunicipiosLoading(false));
+  }, [searchFilters.uf]);
 
   // Enrich state
   const [isEnriching, setIsEnriching] = useState(false);
@@ -814,21 +850,60 @@ export default function CnpjPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Município</Label>
-                    <Input
-                      placeholder="Ex: SAO PAULO"
-                      value={searchFilters.municipio}
-                      onChange={(e) => setSearchFilters(f => ({ ...f, municipio: e.target.value }))}
-                    />
+                    <Label>Município <span className="text-destructive">*</span></Label>
+                    <Popover open={municipioOpen} onOpenChange={setMunicipioOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={municipioOpen}
+                          className={cn(
+                            "w-full justify-between font-normal",
+                            !searchFilters.municipio && "text-muted-foreground"
+                          )}
+                          disabled={!searchFilters.uf || isMunicipiosLoading}
+                        >
+                          {isMunicipiosLoading
+                            ? "Carregando..."
+                            : searchFilters.municipio || "Selecione o município"}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[300px] p-0 z-50" align="start">
+                        <Command>
+                          <CommandInput placeholder="Buscar município..." />
+                          <CommandList>
+                            <CommandEmpty>Nenhum município encontrado.</CommandEmpty>
+                            <CommandGroup className="max-h-[250px] overflow-y-auto">
+                              {municipios.map((mun) => (
+                                <CommandItem
+                                  key={mun}
+                                  value={mun}
+                                  onSelect={(val) => {
+                                    setSearchFilters(f => ({ ...f, municipio: val }));
+                                    setMunicipioOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      searchFilters.municipio.toLowerCase() === mun.toLowerCase() ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {mun}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div className="space-y-2">
                     <Label className="flex items-center gap-1">
-                      UF
-                      {searchFilters.razao_social.trim() && (
-                        <span className="text-destructive text-xs">*obrigatório</span>
-                      )}
+                      UF <span className="text-destructive">*</span>
                     </Label>
-                    <Select value={searchFilters.uf || 'all'} onValueChange={(v) => setSearchFilters(f => ({ ...f, uf: v === 'all' ? '' : v }))}>
+                    <Select value={searchFilters.uf || 'all'} onValueChange={(v) => setSearchFilters(f => ({ ...f, uf: v === 'all' ? '' : v, municipio: '' }))}>
                       <SelectTrigger className={cn(filterValidationError && 'border-destructive')}>
                         <SelectValue placeholder="Todos" />
                       </SelectTrigger>
