@@ -46,7 +46,7 @@ import {
   SearchIcon,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { exportToXLSX } from '@/lib/api';
+
 import { format, differenceInDays, subDays, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -285,24 +285,30 @@ export default function CnpjPage() {
     toast({ title: 'CNAE aplicado', description: `CNAE ${code} preenchido na pesquisa avançada` });
   };
 
-  const handleExport = () => {
-    if (searchResults.length === 0) return;
-    const formatted = searchResults.map((r: any, idx: number) => ({
-      id: String(idx),
-      company: r.razao_social || '',
-      website: null,
-      phone: r.ddd_telefone_1 ? `(${r.ddd_telefone_1})` : null,
-      whatsapp: null,
-      email: null,
-      whatsappValid: null,
-      source: 'CNPJ',
-      searchTerm: `${r.cnpj_basico || ''}`,
-      bio: `${r.nome_fantasia || ''} - ${r.uf || ''} ${r.municipio_nome || ''}`,
-      createdAt: new Date().toISOString(),
-    }));
-    exportToXLSX(formatted as any);
-    toast({ title: 'Exportado com sucesso!' });
+  const exportCnpjResults = (results: any[], filename?: string) => {
+    if (results.length === 0) return;
+    import('xlsx').then(XLSX => {
+      const data = results.map((r: any) => ({
+        'CNPJ': formatCnpj(`${r.cnpj_basico || ''}${r.cnpj_ordem || ''}${r.cnpj_dv || ''}`),
+        'Razão Social': r.razao_social || '',
+        'Nome Fantasia': r.nome_fantasia || '',
+        'UF': r.uf || '',
+        'Município': r.municipio_nome || r.municipio || '',
+        'Telefone': r.ddd_telefone_1 ? `(${r.ddd_telefone_1})` : '',
+        'Situação': r.situacao_cadastral === '02' ? 'Ativa' : (r.situacao_cadastral || ''),
+        'Data Abertura': r.data_inicio_atividade ? formatDateDisplay(r.data_inicio_atividade) : '',
+        'CNAE Principal': r.cnae_fiscal_principal || '',
+      }));
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'CNPJ');
+      XLSX.writeFile(wb, `${filename || 'cnpj_export'}.xlsx`);
+    });
+    toast({ title: 'Exportado com sucesso!', description: `${results.length} registros exportados` });
   };
+
+  const handleExport = () => exportCnpjResults(searchResults, 'cnpj_pesquisa');
+  const handleExportSaved = () => exportCnpjResults(filteredSavedResults, `cnpj_${viewingSaved?.name || 'salvos'}`);
 
   // Filtered saved queries
   const filteredSaved = useMemo(() => {
@@ -866,9 +872,15 @@ export default function CnpjPage() {
                         {viewingSaved.results_count} resultados · Salvo em {viewingSaved.created_at ? new Date(viewingSaved.created_at).toLocaleDateString('pt-BR') : '-'}
                       </CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => { setViewingSaved(null); setSavedResultFilter(''); }}>
-                      ← Voltar
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={handleExportSaved} disabled={filteredSavedResults.length === 0}>
+                        <Download className="h-4 w-4 mr-1" />
+                        Exportar XLSX
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => { setViewingSaved(null); setSavedResultFilter(''); }}>
+                        ← Voltar
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
