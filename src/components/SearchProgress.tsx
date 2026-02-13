@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 
 interface SearchProgressProps {
   isLoading: boolean;
-  source: 'google' | 'instagram' | 'linkedin';
+  source: 'google' | 'instagram' | 'linkedin' | 'cnpj';
 }
 
 const steps = [
@@ -88,13 +88,15 @@ export function SearchProgress({ isLoading, source }: SearchProgressProps) {
           </div>
           <div>
             <h3 className="font-semibold text-lg neon-text-cyan">
-              Pesquisando {source === 'instagram' ? 'Instagram' : source === 'linkedin' ? 'LinkedIn' : 'Google Meu Negócio'}
+              Pesquisando {source === 'instagram' ? 'Instagram' : source === 'linkedin' ? 'LinkedIn' : source === 'cnpj' ? 'Base da Receita Federal' : 'Google Meu Negócio'}
             </h3>
             <p className="text-sm text-muted-foreground">
               {source === 'instagram' 
                 ? 'Conectando via Firecrawl...' 
                 : source === 'linkedin'
                 ? 'Analisando perfis profissionais...'
+                : source === 'cnpj'
+                ? 'Consultando dados de empresas...'
                 : 'Buscando estabelecimentos...'}
             </p>
           </div>

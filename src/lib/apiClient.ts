@@ -493,6 +493,8 @@ export const cnpjApi = {
     municipio?: string;
     uf?: string;
     situacao?: string;
+    data_abertura_gte?: string;
+    data_abertura_lte?: string;
     page?: number;
     limit?: number;
   }) {

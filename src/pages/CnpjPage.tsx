@@ -71,7 +71,7 @@ const DATE_PRESETS = [
 ];
 
 function toApiDate(date: Date): string {
-  return format(date, 'yyyyMMdd');
+  return format(date, 'yyyy-MM-dd');
 }
 
 export default function CnpjPage() {
@@ -383,7 +383,7 @@ export default function CnpjPage() {
               </div>
 
               {isLookupLoading && (
-                <SearchProgress isLoading={true} source="google" />
+                <SearchProgress isLoading={true} source="cnpj" />
               )}
             </CardContent>
           </Card>
@@ -742,7 +742,7 @@ export default function CnpjPage() {
 
           {/* Progress bar */}
           {isSearchLoading && (
-            <SearchProgress isLoading={true} source="google" />
+            <SearchProgress isLoading={true} source="cnpj" />
           )}
 
           {/* Resultados */}
