@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 
 interface SearchProgressProps {
   isLoading: boolean;
-  source: 'google' | 'instagram';
+  source: 'google' | 'instagram' | 'linkedin';
 }
 
 const steps = [

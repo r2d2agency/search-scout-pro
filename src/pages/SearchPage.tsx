@@ -1015,9 +1015,9 @@ const SearchPage = () => {
 
                       {/* Botões de ação */}
                       <div className="flex items-center gap-2 pt-1">
-                        {((isInstagram && serpData.username) || (isLinkedin && lead.link)) && (
+                        {((isInstagram && serpData.username) || (isLinkedin && (lead as any).link)) && (
                           <a
-                            href={isInstagram ? `https://instagram.com/${serpData.username}` : lead.link}
+                            href={isInstagram ? `https://instagram.com/${serpData.username}` : (lead as any).link}
                             target="_blank"
                             rel="noopener noreferrer"
                           >

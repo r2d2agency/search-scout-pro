@@ -101,7 +101,8 @@ CREATE TABLE IF NOT EXISTS settings (
 INSERT INTO settings (key, value) VALUES
 ('evolution_api_url', ''),
 ('evolution_api_key', ''),
-('evolution_instance', '')
+('evolution_instance', ''),
+('cnpj_api_token', '')
 ON CONFLICT (key) DO NOTHING;
 
 -- =====================================================

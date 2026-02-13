@@ -82,6 +82,7 @@ export interface AdminSettings {
   evolutionApiUrl: string;
   evolutionApiKey: string;
   evolutionInstance: string;
+  cnpjApiToken: string;
 }
 
 export interface PaginationInfo {

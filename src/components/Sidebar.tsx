@@ -9,7 +9,8 @@ import {
   Key,
   Cog,
   Instagram,
-  Flame
+  Flame,
+  Building2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,6 +21,7 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/search', icon: Search, label: 'Pesquisar' },
   { to: '/leads', icon: Database, label: 'Leads Salvos' },
+  { to: '/cnpj', icon: Building2, label: 'Consulta CNPJ' },
   { to: '/pricing', icon: DollarSign, label: 'Planos' },
 ];
 

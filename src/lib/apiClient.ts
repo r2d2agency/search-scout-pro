@@ -478,6 +478,38 @@ export const instagramFirecrawlApi = {
   },
 };
 
+// API CNPJ (Gleego)
+export const cnpjApi = {
+  async lookup(cnpj: string) {
+    return apiRequest<any>('/cnpj/lookup', {
+      method: 'POST',
+      body: JSON.stringify({ cnpj }),
+    });
+  },
+
+  async search(filters: {
+    razao_social?: string;
+    cnae?: string;
+    municipio?: string;
+    uf?: string;
+    situacao?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    return apiRequest<any>('/cnpj/search', {
+      method: 'POST',
+      body: JSON.stringify(filters),
+    });
+  },
+
+  async bulk(cnpjs: string[]) {
+    return apiRequest<any>('/cnpj/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ cnpjs }),
+    });
+  },
+};
+
 // API Saved Searches (pesquisas salvas)
 export const savedSearchesApi = {
   async list() {
