@@ -63,21 +63,30 @@ async function checkWhatsApp(phone, evolutionConfig) {
   }
 }
 
-// Buscar empresa por endereço no Google Places (Serper.dev)
+// Buscar empresa por nome fantasia + endereço no Google Places (Serper.dev)
 async function searchByAddress(lead, apiKey) {
-  // Montar query com endereço
-  const parts = [];
-  if (lead.tipo_logradouro) parts.push(lead.tipo_logradouro);
-  if (lead.logradouro) parts.push(lead.logradouro);
-  if (lead.numero && lead.numero !== '0' && lead.numero.toUpperCase() !== 'SN') parts.push(lead.numero);
-  if (lead.bairro) parts.push(lead.bairro);
-  if (lead.municipio_nome || lead.municipio) parts.push(lead.municipio_nome || lead.municipio);
-  if (lead.uf) parts.push(lead.uf);
+  // Verificar se tem nome fantasia - se não tiver, pular
+  const nomeFantasia = (lead.nome_fantasia || '').trim();
+  if (!nomeFantasia) {
+    return { found: false, reason: 'Sem nome fantasia', skipped: true };
+  }
 
-  const addressQuery = parts.join(', ');
-  if (!addressQuery || parts.length < 3) {
+  // Montar query: nome fantasia + endereço
+  const addressParts = [];
+  if (lead.tipo_logradouro) addressParts.push(lead.tipo_logradouro);
+  if (lead.logradouro) addressParts.push(lead.logradouro);
+  if (lead.numero && lead.numero !== '0' && lead.numero.toUpperCase() !== 'SN') addressParts.push(lead.numero);
+  if (lead.bairro) addressParts.push(lead.bairro);
+  if (lead.municipio_nome || lead.municipio) addressParts.push(lead.municipio_nome || lead.municipio);
+  if (lead.uf) addressParts.push(lead.uf);
+
+  const addressStr = addressParts.join(', ');
+  if (!addressStr || addressParts.length < 2) {
     return { found: false, reason: 'Endereço insuficiente' };
   }
+
+  // Combinar nome fantasia + endereço para busca mais precisa
+  const searchQuery = `${nomeFantasia} ${addressStr}`;
 
   try {
     const response = await fetch('https://google.serper.dev/places', {
@@ -87,7 +96,7 @@ async function searchByAddress(lead, apiKey) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        q: addressQuery,
+        q: searchQuery,
         gl: 'br',
         hl: 'pt-br',
         num: 5,
@@ -175,7 +184,9 @@ router.post('/', authenticate, async (req, res) => {
 
       results.push({
         cnpj: `${lead.cnpj_basico || ''}${lead.cnpj_ordem || ''}${lead.cnpj_dv || ''}`,
+        nomeFantasia: (lead.nome_fantasia || '').trim() || null,
         enriched: searchResult.found,
+        skipped: searchResult.skipped || false,
         googleName: searchResult.googleName || null,
         phone: phone,
         phoneFormatted: searchResult.phoneFormatted || null,
@@ -189,8 +200,10 @@ router.post('/', authenticate, async (req, res) => {
         reason: searchResult.reason || null,
       });
 
-      // Delay entre buscas para respeitar rate limit da Serper
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Delay entre buscas para respeitar rate limit da Serper (só se não foi skipped)
+      if (!searchResult.skipped) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
     }
 
     const enrichedCount = results.filter(r => r.enriched).length;

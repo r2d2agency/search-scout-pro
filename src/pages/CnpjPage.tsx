@@ -1155,17 +1155,19 @@ export default function CnpjPage() {
                             return (
                               <>
                                 <TableCell className="max-w-[150px] truncate text-sm">
-                                  {ed?.googleName ? (
+                                  {ed?.skipped ? (
+                                    <span className="text-muted-foreground text-xs italic">Sem nome fantasia</span>
+                                  ) : ed?.googleName ? (
                                     <span className="text-primary">{ed.googleName}</span>
                                   ) : ed ? (
                                     <span className="text-muted-foreground text-xs">Não encontrado</span>
                                   ) : '-'}
                                 </TableCell>
                                 <TableCell className="text-sm">
-                                  {ed?.phoneFormatted || (ed ? <span className="text-muted-foreground text-xs">-</span> : '-')}
+                                  {ed?.skipped ? '-' : ed?.phoneFormatted || (ed ? <span className="text-muted-foreground text-xs">-</span> : '-')}
                                 </TableCell>
                                 <TableCell>
-                                  {ed?.whatsappValid === true ? (
+                                  {ed?.skipped ? '-' : ed?.whatsappValid === true ? (
                                     <Badge variant="default" className="text-xs bg-green-600"><MessageCircle className="h-3 w-3 mr-1" />Sim</Badge>
                                   ) : ed?.whatsappValid === false ? (
                                     <Badge variant="secondary" className="text-xs">Não</Badge>
@@ -1435,17 +1437,19 @@ export default function CnpjPage() {
                               return (
                                 <>
                                   <TableCell className="max-w-[150px] truncate text-sm">
-                                    {ed?.googleName ? (
+                                    {ed?.skipped ? (
+                                      <span className="text-muted-foreground text-xs italic">Sem nome fantasia</span>
+                                    ) : ed?.googleName ? (
                                       <span className="text-primary">{ed.googleName}</span>
                                     ) : ed ? (
                                       <span className="text-muted-foreground text-xs">Não encontrado</span>
                                     ) : '-'}
                                   </TableCell>
                                   <TableCell className="text-sm">
-                                    {ed?.phoneFormatted || (ed ? <span className="text-muted-foreground text-xs">-</span> : '-')}
+                                    {ed?.skipped ? '-' : ed?.phoneFormatted || (ed ? <span className="text-muted-foreground text-xs">-</span> : '-')}
                                   </TableCell>
                                   <TableCell>
-                                    {ed?.whatsappValid === true ? (
+                                    {ed?.skipped ? '-' : ed?.whatsappValid === true ? (
                                       <Badge className="text-xs bg-green-600 text-white"><MessageCircle className="h-3 w-3 mr-1" />Sim</Badge>
                                     ) : ed?.whatsappValid === false ? (
                                       <Badge variant="secondary" className="text-xs">Não</Badge>
