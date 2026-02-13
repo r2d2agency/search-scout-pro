@@ -399,8 +399,8 @@ const SearchPage = () => {
   return (
     <div className="space-y-4">
       {/* Seletor de fonte */}
-      <Tabs value={searchSource} onValueChange={(v) => setSearchSource(v as 'google' | 'instagram')} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+      <Tabs value={searchSource} onValueChange={(v) => setSearchSource(v as 'google' | 'instagram' | 'linkedin')} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-3">
           <TabsTrigger value="google" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             Google Meu Negócio
@@ -408,6 +408,10 @@ const SearchPage = () => {
           <TabsTrigger value="instagram" className="flex items-center gap-2">
             <Instagram className="h-4 w-4" />
             Instagram
+          </TabsTrigger>
+          <TabsTrigger value="linkedin" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            LinkedIn
           </TabsTrigger>
         </TabsList>
       </Tabs>
