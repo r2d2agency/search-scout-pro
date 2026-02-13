@@ -1,8 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { AdminSettings } from '@/types/lead';
 import { toast } from '@/hooks/use-toast';
-
-const SETTINGS_KEY = 'lead_extractor_settings';
+import { settingsApi } from '@/lib/apiClient';
 
 const defaultSettings: AdminSettings = {
   serpApiKey: '',
@@ -17,16 +16,17 @@ export function useSettings() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Carregar settings do localStorage (para modo sem backend)
+  // Carregar settings do backend
   useEffect(() => {
-    const saved = localStorage.getItem(SETTINGS_KEY);
-    if (saved) {
+    const loadSettings = async () => {
       try {
-        setSettings(JSON.parse(saved));
-      } catch {
-        console.error('Erro ao carregar configurações');
+        const data = await settingsApi.get();
+        setSettings(prev => ({ ...prev, ...data }));
+      } catch (error) {
+        console.error('Erro ao carregar configurações do backend:', error);
       }
-    }
+    };
+    loadSettings();
   }, []);
 
   const updateSettings = useCallback((updates: Partial<AdminSettings>) => {
@@ -37,11 +37,7 @@ export function useSettings() {
     setIsSaving(true);
     
     try {
-      // Salvar localmente (para modo sem backend)
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-      
-      // TODO: Quando backend estiver configurado, descomentar:
-      // await api.saveSettings(settings);
+      await settingsApi.save(settings);
       
       toast({
         title: 'Configurações salvas',
@@ -69,11 +65,8 @@ export function useSettings() {
     }
 
     setIsLoading(true);
-    
     try {
-      // Simulação de teste (substituir pela API real)
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
       toast({
         title: 'Conexão SERP OK',
         description: 'A chave da API SERP está funcionando',
@@ -100,11 +93,8 @@ export function useSettings() {
     }
 
     setIsLoading(true);
-    
     try {
-      // Simulação de teste (substituir pela API real)
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
       toast({
         title: 'Conexão Evolution OK',
         description: 'A API Evolution está funcionando',
