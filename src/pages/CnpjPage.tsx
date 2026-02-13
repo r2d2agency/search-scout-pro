@@ -893,8 +893,8 @@ export default function CnpjPage() {
                                 <CommandItem
                                   key={mun}
                                   value={mun}
-                                  onSelect={(val) => {
-                                    setSearchFilters(f => ({ ...f, municipio: val }));
+                                  onSelect={() => {
+                                    setSearchFilters(f => ({ ...f, municipio: mun }));
                                     setMunicipioOpen(false);
                                   }}
                                 >
