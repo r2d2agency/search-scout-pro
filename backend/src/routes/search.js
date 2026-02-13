@@ -83,9 +83,9 @@ router.post('/', authenticate, async (req, res) => {
     }
 
     // Fazer requisição ao endpoint Places da Serper.dev (Google Meu Negócio)
-    // Limite de 20 resultados por página (padrão da API)
-    // Usar 'start' para paginação se 'page' não for suportado diretamente (page 1 -> start 0, page 2 -> start 20)
-    const start = (page - 1) * 20;
+    // Tentar buscar mais resultados por página (max 100 na API Serper se suportado para Places)
+    const RESULTS_PER_PAGE = 50; 
+    const start = (page - 1) * RESULTS_PER_PAGE;
     
     const serpResponse = await fetch('https://google.serper.dev/places', {
       method: 'POST',
@@ -97,13 +97,13 @@ router.post('/', authenticate, async (req, res) => {
         q: query,
         gl: 'br',
         hl: 'pt-br',
-        num: 20,
-        start: start, // Tentativa de paginação via start
-        page: page    // Manter page por compatibilidade caso suporte
+        num: RESULTS_PER_PAGE,
+        start: start,
+        page: page
       })
     });
 
-    console.log('Serper Places Request:', { query, page, num: 20 });
+    console.log('Serper Places Request:', { query, page, num: RESULTS_PER_PAGE, start });
 
     // Tratar resposta
     const raw = await serpResponse.text();

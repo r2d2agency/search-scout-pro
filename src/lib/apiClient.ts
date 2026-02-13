@@ -155,8 +155,22 @@ export const plansApi = {
 
 // API Leads
 export const leadsApi = {
-  async list(page = 1, limit = 30) {
-    return apiRequest<{ leads: any[]; total: number }>(`/leads?page=${page}&limit=${limit}`);
+  async list(page = 1, limit = 30, filters?: any) {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+    });
+
+    if (filters) {
+      if (filters.searchTerm) params.append('searchTerm', filters.searchTerm);
+      if (filters.dateFrom) params.append('dateFrom', filters.dateFrom.toISOString());
+      if (filters.dateTo) params.append('dateTo', filters.dateTo.toISOString());
+      if (filters.whatsappStatus) params.append('whatsappStatus', filters.whatsappStatus);
+      if (filters.searchQuery) params.append('searchQuery', filters.searchQuery);
+      if (filters.all) params.append('all', 'true');
+    }
+
+    return apiRequest<{ leads: any[]; total: number }>(`/leads?${params.toString()}`);
   },
 
   async save(lead: any) {

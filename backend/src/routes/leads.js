@@ -143,23 +143,105 @@ async function checkLimit(userId, type, count = 1) {
   return (used + count) <= limit;
 }
 
-// Listar leads do usuário
+// Listar leads do usuário com filtros
 router.get('/', authenticate, async (req, res) => {
   try {
-    const { page = 1, limit = 30 } = req.query;
+    const { 
+      page = 1, 
+      limit = 30, 
+      searchTerm, 
+      dateFrom, 
+      dateTo, 
+      whatsappStatus,
+      searchQuery,
+      all = false 
+    } = req.query;
+
     const offset = (page - 1) * limit;
+    const params = [req.user.id];
+    let query = `SELECT * FROM leads WHERE user_id = $1`;
+    let countQuery = `SELECT COUNT(*) FROM leads WHERE user_id = $1`;
+    let paramIndex = 2;
 
-    const result = await db.query(
-      `SELECT * FROM leads WHERE user_id = $1 
-       ORDER BY created_at DESC 
-       LIMIT $2 OFFSET $3`,
-      [req.user.id, limit, offset]
-    );
+    // Filtro por termo (Company, Email, Phone)
+    if (searchTerm) {
+      query += ` AND (LOWER(company) LIKE $${paramIndex} OR LOWER(email) LIKE $${paramIndex} OR phone LIKE $${paramIndex})`;
+      countQuery += ` AND (LOWER(company) LIKE $${paramIndex} OR LOWER(email) LIKE $${paramIndex} OR phone LIKE $${paramIndex})`;
+      params.push(`%${searchTerm.toLowerCase()}%`);
+      paramIndex++;
+    }
 
-    const countResult = await db.query(
-      'SELECT COUNT(*) FROM leads WHERE user_id = $1',
-      [req.user.id]
-    );
+    // Filtro por Data Inicial
+    if (dateFrom) {
+      query += ` AND created_at >= $${paramIndex}`;
+      countQuery += ` AND created_at >= $${paramIndex}`;
+      params.push(dateFrom);
+      paramIndex++;
+    }
+
+    // Filtro por Data Final
+    if (dateTo) {
+      // Ajustar para final do dia se necessário, mas assumindo que o front manda ISO string correta ou data
+      // Se vier apenas data YYYY-MM-DD, adicionar hora final
+      let endDate = dateTo;
+      if (dateTo.length === 10) {
+        endDate = `${dateTo} 23:59:59`;
+      }
+      query += ` AND created_at <= $${paramIndex}`;
+      countQuery += ` AND created_at <= $${paramIndex}`;
+      params.push(endDate);
+      paramIndex++;
+    }
+
+    // Filtro por Status do WhatsApp
+    if (whatsappStatus && whatsappStatus !== 'all') {
+      if (whatsappStatus === 'valid') {
+        query += ` AND whatsapp_valid = true`;
+        countQuery += ` AND whatsapp_valid = true`;
+      } else if (whatsappStatus === 'invalid') {
+        query += ` AND whatsapp_valid = false`;
+        countQuery += ` AND whatsapp_valid = false`;
+      } else if (whatsappStatus === 'not_verified') {
+        query += ` AND whatsapp_valid IS NULL`;
+        countQuery += ` AND whatsapp_valid IS NULL`;
+      } else if (whatsappStatus === 'has_whatsapp') {
+        query += ` AND whatsapp IS NOT NULL AND whatsapp != ''`;
+        countQuery += ` AND whatsapp IS NOT NULL AND whatsapp != ''`;
+      }
+    }
+
+    // Filtro por Query Original
+    if (searchQuery && searchQuery !== 'all') {
+      query += ` AND search_term = $${paramIndex}`;
+      countQuery += ` AND search_term = $${paramIndex}`;
+      params.push(searchQuery);
+      paramIndex++;
+    }
+
+    // Ordenação
+    query += ` ORDER BY created_at DESC`;
+
+    // Paginação (se não for exportação total)
+    if (all !== 'true' && all !== true) {
+      query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+      params.push(limit, offset);
+    }
+
+    const result = await db.query(query, params);
+    
+    // Contagem total (para paginação) - params da countQuery são subset dos params originais
+    // Precisamos reconstruir os params do count corretamente
+    // Uma forma mais segura é filtrar os params usados na query principal até o limite/offset
+    const countParams = params.slice(0, paramIndex - 1); 
+    // OBS: paramIndex aponta para o próximo, então paramIndex-1 é o último usado nos filtros.
+    // Mas params.slice vai até end (exclusive), então paramIndex-1 pega até o índice anterior.
+    // O array params tem user_id (idx 0) e filtros. LIMIT e OFFSET são adicionados no final.
+    // Se all=true, não tem limit/offset.
+    
+    // Simplificando: countParams são todos os params MENOS limit e offset (se existirem)
+    const countParamsFinal = (all !== 'true' && all !== true) ? params.slice(0, params.length - 2) : params;
+
+    const countResult = await db.query(countQuery, countParamsFinal);
 
     const leads = result.rows.map(row => ({
       id: row.id,

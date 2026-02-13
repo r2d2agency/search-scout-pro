@@ -19,6 +19,7 @@ const SavedLeadsPage = () => {
   const { isAuthenticated } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalLeads, setTotalLeads] = useState(0);
   const [filters, setFilters] = useState<LeadsFiltersState>({
@@ -39,7 +40,7 @@ const SavedLeadsPage = () => {
     
     setIsLoading(true);
     try {
-      const response = await leadsApi.list(page, LEADS_PER_PAGE);
+      const response = await leadsApi.list(page, LEADS_PER_PAGE, filters);
       setLeads(response.leads || []);
       setTotalLeads(response.total || 0);
       setCurrentPage(page);
@@ -53,73 +54,59 @@ const SavedLeadsPage = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, filters]);
 
+  // Debounce para evitar muitas chamadas ao digitar
   useEffect(() => {
-    loadLeads(1);
+    const timer = setTimeout(() => {
+      loadLeads(1);
+    }, 500);
+
+    return () => clearTimeout(timer);
   }, [loadLeads]);
 
-  // Extrair termos de pesquisa únicos
+  // Extrair termos de pesquisa únicos (apenas da página atual por enquanto)
   const uniqueSearchTerms = useMemo(() => {
     const terms = new Set(leads.map(lead => lead.searchTerm));
     return Array.from(terms).filter(Boolean).sort();
   }, [leads]);
 
-  // Aplicar filtros locais
-  const filteredLeads = useMemo(() => {
-    return leads.filter(lead => {
-      if (filters.searchTerm) {
-        const searchLower = filters.searchTerm.toLowerCase();
-        const matchesSearch = 
-          lead.company.toLowerCase().includes(searchLower) ||
-          lead.email?.toLowerCase().includes(searchLower) ||
-          lead.phone?.toLowerCase().includes(searchLower);
-        if (!matchesSearch) return false;
-      }
-
-      if (filters.whatsappStatus !== 'all') {
-        switch (filters.whatsappStatus as WhatsAppStatusFilter) {
-          case 'valid':
-            if (lead.whatsappValid !== true) return false;
-            break;
-          case 'invalid':
-            if (lead.whatsappValid !== false) return false;
-            break;
-          case 'not_verified':
-            if (lead.whatsappValid !== null) return false;
-            break;
-          case 'has_whatsapp':
-            if (!lead.whatsapp) return false;
-            break;
-        }
-      }
-
-      if (filters.searchQuery !== 'all') {
-        if (lead.searchTerm !== filters.searchQuery) return false;
-      }
-
-      if (filters.dateFrom || filters.dateTo) {
-        const leadDate = new Date(lead.createdAt);
-        
-        if (filters.dateFrom) {
-          const fromDate = new Date(filters.dateFrom);
-          fromDate.setHours(0, 0, 0, 0);
-          if (leadDate < fromDate) return false;
-        }
-        
-        if (filters.dateTo) {
-          const toDate = new Date(filters.dateTo);
-          toDate.setHours(23, 59, 59, 999);
-          if (leadDate > toDate) return false;
-        }
-      }
-
-      return true;
-    });
-  }, [leads, filters]);
+  // Leads já vêm filtrados do backend
+  const filteredLeads = leads;
 
   const handleRefresh = () => {
     loadLeads(currentPage);
+  };
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      // Buscar todos os leads que correspondem aos filtros atuais
+      const response = await leadsApi.list(1, 0, { ...filters, all: true });
+      
+      if (!response.leads || response.leads.length === 0) {
+        toast({
+          title: 'Nenhum lead para exportar',
+          description: 'Tente ajustar os filtros.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      exportToXLSX(response.leads);
+      toast({
+        title: 'Exportação concluída',
+        description: `${response.leads.length} leads exportados com sucesso.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Erro na exportação',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleDeleteLead = async (leadId: string) => {
