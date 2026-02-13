@@ -44,6 +44,7 @@ import {
   BookmarkCheck,
   Trash2,
   SearchIcon,
+  Database,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -221,9 +222,11 @@ export default function CnpjPage() {
         params.data_abertura_lte = toApiDate(dateTo);
       }
       const data = await cnpjApi.search(params);
-      const results = data.results || data.empresas || data || [];
+      console.log('CNPJ API response keys:', Object.keys(data), 'total:', data.total, 'count:', data.count, 'total_count:', data.total_count, 'totalResults:', data.totalResults);
+      const results = data.results || data.empresas || data.data || data || [];
       setSearchResults(Array.isArray(results) ? results.slice(0, MAX_RESULTS) : []);
-      setTotalResults(data.total || results.length || 0);
+      setTotalResults(data.total || data.count || data.total_count || data.totalResults || (Array.isArray(results) ? results.length : 0));
+
       setSearchPage(page);
     } catch (error: any) {
       toast({ title: 'Erro na pesquisa', description: error.message, variant: 'destructive' });
@@ -749,14 +752,19 @@ export default function CnpjPage() {
           {searchResults.length > 0 && !isSearchLoading && (
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-3">
                   <CardTitle className="flex items-center gap-2">
                     <FileText className="h-5 w-5" />
                     Resultados
                   </CardTitle>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">{searchResults.length} nesta página</Badge>
-                    {totalResults > 0 && <Badge variant="secondary">{totalResults} total</Badge>}
+                    {totalResults > 0 && (
+                      <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/30 text-sm px-3 py-1">
+                        <Database className="h-3.5 w-3.5 mr-1.5" />
+                        {totalResults.toLocaleString('pt-BR')} empresas encontradas na Receita Federal
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </CardHeader>
