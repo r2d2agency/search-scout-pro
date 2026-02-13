@@ -790,7 +790,7 @@ export default function CnpjPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <Table>
+                    <div className="overflow-x-auto"><Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Nome</TableHead>
@@ -807,7 +807,7 @@ export default function CnpjPage() {
                           </TableRow>
                         ))}
                       </TableBody>
-                    </Table>
+                    </Table></div>
                   </CardContent>
                 </Card>
               )}
@@ -832,7 +832,7 @@ export default function CnpjPage() {
               {/* Filtros de texto */}
               <div>
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground mb-3 block">Dados da Empresa</Label>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-2">
                     <Label>Razão Social</Label>
                     <Input
@@ -848,6 +848,20 @@ export default function CnpjPage() {
                       value={searchFilters.cnae}
                       onChange={(e) => setSearchFilters(f => ({ ...f, cnae: e.target.value }))}
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>UF <span className="text-destructive">*</span></Label>
+                    <Select value={searchFilters.uf || 'all'} onValueChange={(v) => setSearchFilters(f => ({ ...f, uf: v === 'all' ? '' : v, municipio: '' }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o estado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        {UF_LIST.map(uf => (
+                          <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label>Município <span className="text-destructive">*</span></Label>
@@ -869,7 +883,7 @@ export default function CnpjPage() {
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-[300px] p-0 z-50" align="start">
+                      <PopoverContent className="w-[--radix-popover-trigger-width] min-w-[200px] p-0 z-50" align="start">
                         <Command>
                           <CommandInput placeholder="Buscar município..." />
                           <CommandList>
@@ -898,22 +912,6 @@ export default function CnpjPage() {
                         </Command>
                       </PopoverContent>
                     </Popover>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-1">
-                      UF <span className="text-destructive">*</span>
-                    </Label>
-                    <Select value={searchFilters.uf || 'all'} onValueChange={(v) => setSearchFilters(f => ({ ...f, uf: v === 'all' ? '' : v, municipio: '' }))}>
-                      <SelectTrigger className={cn(filterValidationError && 'border-destructive')}>
-                        <SelectValue placeholder="Todos" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos</SelectItem>
-                        {UF_LIST.map(uf => (
-                          <SelectItem key={uf} value={uf}>{uf}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label>Situação</Label>
@@ -1151,7 +1149,7 @@ export default function CnpjPage() {
                   </div>
                 )}
 
-                <Table>
+                <div className="overflow-x-auto"><Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[40px]">
@@ -1255,7 +1253,7 @@ export default function CnpjPage() {
                       );
                     })}
                   </TableBody>
-                </Table>
+                </Table></div>
                 
                 {/* Load more / pagination */}
                 <div className="flex items-center justify-between mt-4 pt-4 border-t">
@@ -1444,7 +1442,7 @@ export default function CnpjPage() {
                     </div>
                   )}
 
-                  <Table>
+                  <div className="overflow-x-auto"><Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-[40px]">
@@ -1544,7 +1542,7 @@ export default function CnpjPage() {
                         </TableRow>
                       )}
                     </TableBody>
-                  </Table>
+                  </Table></div>
                 </CardContent>
               </Card>
             </>
