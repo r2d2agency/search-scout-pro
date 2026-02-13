@@ -83,8 +83,9 @@ router.post('/', authenticate, async (req, res) => {
     }
 
     // Fazer requisição ao endpoint Places da Serper.dev (Google Meu Negócio)
-    // Tentar buscar mais resultados por página (max 100 na API Serper se suportado para Places)
-    const RESULTS_PER_PAGE = 50; 
+    // A API Serper (Places) geralmente retorna no máximo 10 a 20 resultados.
+    // Vamos fixar em 10 para garantir consistência na paginação e evitar "pulos".
+    const RESULTS_PER_PAGE = 10; 
     const start = (page - 1) * RESULTS_PER_PAGE;
     
     const serpResponse = await fetch('https://google.serper.dev/places', {
@@ -97,7 +98,7 @@ router.post('/', authenticate, async (req, res) => {
         q: query,
         gl: 'br',
         hl: 'pt-br',
-        num: RESULTS_PER_PAGE,
+        num: RESULTS_PER_PAGE, // Solicita 10 (limite seguro)
         start: start,
         page: page
       })
@@ -163,10 +164,14 @@ router.post('/', authenticate, async (req, res) => {
     }
 
     // Informações de paginação
+    // Se vieram resultados (pelo menos 10), assumimos que pode haver mais.
+    // Como ajustamos o bloco para 10, se vierem 10, habilita o botão.
+    const hasMoreResults = placesResults.length >= 10;
+    
     const pagination = {
       currentPage: page,
-      totalResults: leads.length,
-      hasMore: placesResults.length >= 20,
+      totalResults: leads.length, // Total nesta página
+      hasMore: hasMoreResults,
       nextPageToken: null
     };
 
