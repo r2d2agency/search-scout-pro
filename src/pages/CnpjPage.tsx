@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { cnpjApi, savedSearchesApi } from '@/lib/apiClient';
+import { cnpjApi, savedSearchesApi, enrichApi } from '@/lib/apiClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -49,6 +49,9 @@ import {
   CheckSquare,
   XSquare,
   Plus,
+  Zap,
+  MessageCircle,
+  Globe,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -56,6 +59,7 @@ import { format, differenceInDays, subDays, subMonths, startOfMonth, endOfMonth 
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { SearchProgress } from '@/components/SearchProgress';
+import { Progress } from '@/components/ui/progress';
 
 const UF_LIST = [
   'AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT',
@@ -122,6 +126,11 @@ export default function CnpjPage() {
   const [savedDateTo, setSavedDateTo] = useState<Date | undefined>(undefined);
   // Selection for saved results
   const [selectedSavedIds, setSelectedSavedIds] = useState<Set<string>>(new Set());
+
+  // Enrich state
+  const [isEnriching, setIsEnriching] = useState(false);
+  const [enrichProgress, setEnrichProgress] = useState({ current: 0, total: 0 });
+  const [enrichResults, setEnrichResults] = useState<Map<string, any>>(new Map());
 
   // Load saved queries when tab changes
   useEffect(() => {
@@ -357,8 +366,11 @@ export default function CnpjPage() {
         const tel2 = r.ddd_telefone_2 ? `(${r.ddd_telefone_2})` : '';
         const fax = r.ddd_fax ? `(${r.ddd_fax})` : '';
 
+        const cnpjKey = `${r.cnpj_basico || ''}${r.cnpj_ordem || ''}${r.cnpj_dv || ''}`;
+        const ed = enrichResults.get(cnpjKey);
+
         return {
-          'CNPJ': formatCnpj(`${r.cnpj_basico || ''}${r.cnpj_ordem || ''}${r.cnpj_dv || ''}`),
+          'CNPJ': formatCnpj(cnpjKey),
           'Razão Social': r.razao_social || '',
           'Nome Fantasia': r.nome_fantasia || '',
           'Situação': r.situacao_cadastral === '02' ? 'Ativa' : (r.situacao_cadastral_descricao || r.situacao_cadastral || ''),
@@ -385,6 +397,14 @@ export default function CnpjPage() {
           'Motivo Situação': r.motivo_situacao_cadastral_descricao || r.motivo_situacao_cadastral || '',
           'Simples Nacional': r.opcao_pelo_simples === true || r.opcao_pelo_simples === 'S' ? 'Sim' : 'Não',
           'MEI': r.opcao_pelo_mei === true || r.opcao_pelo_mei === 'S' ? 'Sim' : 'Não',
+          // Dados de enriquecimento (Google + WhatsApp)
+          'Google - Nome Encontrado': ed?.googleName || '',
+          'Google - Telefone': ed?.phoneFormatted || '',
+          'Google - WhatsApp Válido': ed?.whatsappValid === true ? 'Sim' : ed?.whatsappValid === false ? 'Não' : '',
+          'Google - Website': ed?.website || '',
+          'Google - Avaliação': ed?.rating ? `${ed.rating} (${ed.ratingCount || 0})` : '',
+          'Google - Categoria': ed?.category || '',
+          'Google - Maps URL': ed?.googleMapsUrl || '',
         };
       });
       const ws = XLSX.utils.json_to_sheet(data);
@@ -428,6 +448,68 @@ export default function CnpjPage() {
     } catch (error: any) {
       toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' });
     }
+  };
+
+  // Enrich leads - busca por endereço no Google + verifica WhatsApp
+  const handleEnrich = useCallback(async (leads: any[], checkWhatsapp = true) => {
+    if (leads.length === 0) {
+      toast({ title: 'Nenhum lead para enriquecer', variant: 'destructive' });
+      return;
+    }
+
+    setIsEnriching(true);
+    setEnrichProgress({ current: 0, total: leads.length });
+
+    try {
+      // Processar em lotes de 10
+      const BATCH_SIZE = 10;
+      const allResults = new Map(enrichResults);
+
+      for (let i = 0; i < leads.length; i += BATCH_SIZE) {
+        const batch = leads.slice(i, i + BATCH_SIZE);
+        const response = await enrichApi.enrich(batch, checkWhatsapp);
+
+        response.results.forEach((r: any) => {
+          allResults.set(r.cnpj, r);
+        });
+
+        setEnrichResults(new Map(allResults));
+        setEnrichProgress({ current: Math.min(i + BATCH_SIZE, leads.length), total: leads.length });
+      }
+
+      const enrichedCount = Array.from(allResults.values()).filter(r => r.enriched).length;
+      const withPhone = Array.from(allResults.values()).filter(r => r.phone).length;
+      const withWhatsapp = Array.from(allResults.values()).filter(r => r.whatsappValid === true).length;
+
+      toast({
+        title: 'Enriquecimento concluído!',
+        description: `${enrichedCount} encontrados no Google · ${withPhone} com telefone · ${withWhatsapp} com WhatsApp`,
+      });
+    } catch (error: any) {
+      toast({ title: 'Erro no enriquecimento', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsEnriching(false);
+    }
+  }, [enrichResults]);
+
+  const handleEnrichSearch = () => {
+    const toEnrich = selectedSearchIds.size > 0
+      ? accumulatedResults.filter((r, i) => selectedSearchIds.has(getResultKey(r, i)))
+      : accumulatedResults;
+    handleEnrich(toEnrich);
+  };
+
+  const handleEnrichSaved = () => {
+    const toEnrich = selectedSavedIds.size > 0
+      ? filteredSavedResults.filter((r: any, i: number) => selectedSavedIds.has(getResultKey(r, i)))
+      : filteredSavedResults;
+    handleEnrich(toEnrich);
+  };
+
+  // Helper to get enrich data for a lead
+  const getEnrichData = (r: any) => {
+    const cnpj = `${r.cnpj_basico || ''}${r.cnpj_ordem || ''}${r.cnpj_dv || ''}`;
+    return enrichResults.get(cnpj);
   };
 
   // Toggle selection helpers
@@ -959,7 +1041,7 @@ export default function CnpjPage() {
               </CardHeader>
               <CardContent>
                 {/* Selection actions */}
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 mb-3 flex-wrap">
                   <Button variant="ghost" size="sm" onClick={toggleAllSearch} className="text-xs">
                     {selectedSearchIds.size === accumulatedResults.length ? (
                       <><XSquare className="h-3.5 w-3.5 mr-1" /> Desmarcar todos</>
@@ -967,7 +1049,34 @@ export default function CnpjPage() {
                       <><CheckSquare className="h-3.5 w-3.5 mr-1" /> Selecionar todos</>
                     )}
                   </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleEnrichSearch} 
+                    disabled={isEnriching || accumulatedResults.length === 0}
+                    className="text-xs gap-1"
+                  >
+                    {isEnriching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                    Enriquecer {selectedSearchIds.size > 0 ? `(${selectedSearchIds.size})` : 'Todos'}
+                  </Button>
+                  {enrichResults.size > 0 && (
+                    <Badge variant="secondary" className="text-xs">
+                      <Globe className="h-3 w-3 mr-1" />
+                      {Array.from(enrichResults.values()).filter(r => r.enriched).length} encontrados no Google
+                    </Badge>
+                  )}
                 </div>
+
+                {/* Enrich progress */}
+                {isEnriching && (
+                  <div className="mb-3 space-y-1">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Enriquecendo leads via Google Maps...</span>
+                      <span>{enrichProgress.current} / {enrichProgress.total}</span>
+                    </div>
+                    <Progress value={(enrichProgress.current / enrichProgress.total) * 100} className="h-2" />
+                  </div>
+                )}
 
                 <Table>
                   <TableHeader>
@@ -986,6 +1095,13 @@ export default function CnpjPage() {
                       <TableHead>Telefone</TableHead>
                       <TableHead>Abertura</TableHead>
                       <TableHead>Situação</TableHead>
+                      {enrichResults.size > 0 && (
+                        <>
+                          <TableHead>Google Nome</TableHead>
+                          <TableHead>Google Tel</TableHead>
+                          <TableHead>WhatsApp</TableHead>
+                        </>
+                      )}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1034,6 +1150,32 @@ export default function CnpjPage() {
                               {r.situacao_cadastral === '02' ? 'Ativa' : r.situacao_cadastral}
                             </Badge>
                           </TableCell>
+                          {enrichResults.size > 0 && (() => {
+                            const ed = getEnrichData(r);
+                            return (
+                              <>
+                                <TableCell className="max-w-[150px] truncate text-sm">
+                                  {ed?.googleName ? (
+                                    <span className="text-primary">{ed.googleName}</span>
+                                  ) : ed ? (
+                                    <span className="text-muted-foreground text-xs">Não encontrado</span>
+                                  ) : '-'}
+                                </TableCell>
+                                <TableCell className="text-sm">
+                                  {ed?.phoneFormatted || (ed ? <span className="text-muted-foreground text-xs">-</span> : '-')}
+                                </TableCell>
+                                <TableCell>
+                                  {ed?.whatsappValid === true ? (
+                                    <Badge variant="default" className="text-xs bg-green-600"><MessageCircle className="h-3 w-3 mr-1" />Sim</Badge>
+                                  ) : ed?.whatsappValid === false ? (
+                                    <Badge variant="secondary" className="text-xs">Não</Badge>
+                                  ) : ed?.phone ? (
+                                    <Badge variant="outline" className="text-xs">Não verificado</Badge>
+                                  ) : '-'}
+                                </TableCell>
+                              </>
+                            );
+                          })()}
                         </TableRow>
                       );
                     })}
@@ -1086,6 +1228,15 @@ export default function CnpjPage() {
                       </CardDescription>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleEnrichSaved} 
+                        disabled={isEnriching || filteredSavedResults.length === 0}
+                      >
+                        {isEnriching ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Zap className="h-4 w-4 mr-1" />}
+                        Enriquecer {selectedSavedIds.size > 0 ? `(${selectedSavedIds.size})` : 'Todos'}
+                      </Button>
                       <Button variant="outline" size="sm" onClick={handleExportSaved} disabled={filteredSavedResults.length === 0}>
                         <Download className="h-4 w-4 mr-1" />
                         Exportar {selectedSavedIds.size > 0 ? `(${selectedSavedIds.size})` : `(${filteredSavedResults.length})`}
@@ -1194,6 +1345,30 @@ export default function CnpjPage() {
                     )}
                   </div>
 
+                  {/* Enrich progress */}
+                  {isEnriching && (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>Enriquecendo leads via Google Maps...</span>
+                        <span>{enrichProgress.current} / {enrichProgress.total}</span>
+                      </div>
+                      <Progress value={(enrichProgress.current / enrichProgress.total) * 100} className="h-2" />
+                    </div>
+                  )}
+
+                  {enrichResults.size > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs">
+                        <Globe className="h-3 w-3 mr-1" />
+                        {Array.from(enrichResults.values()).filter(r => r.enriched).length} encontrados no Google
+                      </Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        <Phone className="h-3 w-3 mr-1" />
+                        {Array.from(enrichResults.values()).filter(r => r.phone).length} com telefone
+                      </Badge>
+                    </div>
+                  )}
+
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -1211,6 +1386,13 @@ export default function CnpjPage() {
                         <TableHead>Telefone</TableHead>
                         <TableHead>Abertura</TableHead>
                         <TableHead>Situação</TableHead>
+                        {enrichResults.size > 0 && (
+                          <>
+                            <TableHead>Google Nome</TableHead>
+                            <TableHead>Google Tel</TableHead>
+                            <TableHead>WhatsApp</TableHead>
+                          </>
+                        )}
                         
                       </TableRow>
                     </TableHeader>
@@ -1248,6 +1430,32 @@ export default function CnpjPage() {
                                 {r.situacao_cadastral === '02' ? 'Ativa' : r.situacao_cadastral || '-'}
                               </Badge>
                             </TableCell>
+                            {enrichResults.size > 0 && (() => {
+                              const ed = getEnrichData(r);
+                              return (
+                                <>
+                                  <TableCell className="max-w-[150px] truncate text-sm">
+                                    {ed?.googleName ? (
+                                      <span className="text-primary">{ed.googleName}</span>
+                                    ) : ed ? (
+                                      <span className="text-muted-foreground text-xs">Não encontrado</span>
+                                    ) : '-'}
+                                  </TableCell>
+                                  <TableCell className="text-sm">
+                                    {ed?.phoneFormatted || (ed ? <span className="text-muted-foreground text-xs">-</span> : '-')}
+                                  </TableCell>
+                                  <TableCell>
+                                    {ed?.whatsappValid === true ? (
+                                      <Badge className="text-xs bg-green-600 text-white"><MessageCircle className="h-3 w-3 mr-1" />Sim</Badge>
+                                    ) : ed?.whatsappValid === false ? (
+                                      <Badge variant="secondary" className="text-xs">Não</Badge>
+                                    ) : ed?.phone ? (
+                                      <Badge variant="outline" className="text-xs">Não verificado</Badge>
+                                    ) : '-'}
+                                  </TableCell>
+                                </>
+                              );
+                            })()}
                           </TableRow>
                         );
                       })}

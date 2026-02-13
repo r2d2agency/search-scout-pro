@@ -555,3 +555,35 @@ export const savedSearchesApi = {
     return apiRequest<void>(`/saved-searches/${id}`, { method: 'DELETE' });
   },
 };
+
+// API Enrich (enriquecimento de leads CNPJ)
+export const enrichApi = {
+  async enrich(leads: any[], checkWhatsapp = true) {
+    return apiRequest<{
+      results: Array<{
+        cnpj: string;
+        enriched: boolean;
+        googleName: string | null;
+        phone: string | null;
+        phoneFormatted: string | null;
+        whatsappValid: boolean | null;
+        website: string | null;
+        googleAddress: string | null;
+        rating: number | null;
+        ratingCount: number | null;
+        category: string | null;
+        googleMapsUrl: string | null;
+        reason: string | null;
+      }>;
+      summary: {
+        total: number;
+        enriched: number;
+        withPhone: number;
+        withWhatsapp: number;
+      };
+    }>('/enrich', {
+      method: 'POST',
+      body: JSON.stringify({ leads, checkWhatsapp }),
+    });
+  },
+};

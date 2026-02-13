@@ -18,6 +18,7 @@ const instagramFirecrawlRoutes = require('./routes/instagram-firecrawl');
 const linkedinRoutes = require('./routes/linkedin');
 const firecrawlKeysRoutes = require('./routes/firecrawl-keys');
 const cnpjRoutes = require('./routes/cnpj');
+const enrichRoutes = require('./routes/enrich');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -91,6 +92,7 @@ app.use('/api/instagram-firecrawl', instagramFirecrawlRoutes);
 app.use('/api/linkedin', linkedinRoutes);
 app.use('/api/firecrawl-keys', firecrawlKeysRoutes);
 app.use('/api/cnpj', cnpjRoutes);
+app.use('/api/enrich', enrichRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
