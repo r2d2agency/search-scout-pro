@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, LogOut, CreditCard, Clock, Key, Loader2 } from 'lucide-react';
+import { User, LogOut, CreditCard, Clock, Key, Loader2, Menu } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/contexts/AuthContext';
 import { usersApi } from '@/lib/apiClient';
 import { Button } from '@/components/ui/button';
@@ -24,7 +25,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-export function Header() {
+interface HeaderProps {
+  onMenuToggle?: () => void;
+}
+
+export function Header({ onMenuToggle }: HeaderProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -94,9 +99,15 @@ export function Header() {
   if (!user) return null;
 
   return (
-    <header className="h-16 border-b border-border bg-background/80 backdrop-blur-sm flex items-center justify-end px-6 gap-4">
-      {/* Data e Hora */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+    <header className="h-16 border-b border-border bg-background/80 backdrop-blur-sm flex items-center justify-between md:justify-end px-4 md:px-6 gap-4">
+      {/* Mobile menu button */}
+      {onMenuToggle && (
+        <Button variant="ghost" size="icon" className="md:hidden" onClick={onMenuToggle}>
+          <Menu className="h-5 w-5" />
+        </Button>
+      )}
+      {/* Data e Hora - hidden on mobile */}
+      <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
         <Clock className="h-4 w-4" />
         <span>{formatDate(currentTime)}</span>
         <span className="text-primary font-mono">{formatTime(currentTime)}</span>
@@ -104,7 +115,7 @@ export function Header() {
       </div>
 
       {/* Separador */}
-      <div className="h-8 w-px bg-border" />
+      <div className="hidden md:block h-8 w-px bg-border" />
 
       {/* Perfil do Usuário */}
       <DropdownMenu>
