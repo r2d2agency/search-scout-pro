@@ -697,7 +697,48 @@ export default function CnpjPage() {
           </Card>
 
           {/* Resultado da consulta */}
-          {lookupResult && (
+          {lookupResult && (() => {
+            // Normalize: API pode retornar dados aninhados (empresa/estabelecimento) ou flat
+            const emp = lookupResult.empresa || lookupResult;
+            const est = lookupResult.estabelecimento || lookupResult;
+            const socios = lookupResult.socios || lookupResult.qsa || emp.socios || [];
+            
+            const razaoSocial = emp.razao_social || est.razao_social || lookupResult.razao_social || '';
+            const nomeFantasia = est.nome_fantasia || emp.nome_fantasia || lookupResult.nome_fantasia || '';
+            const capitalSocial = emp.capital_social || lookupResult.capital_social;
+            const natureza = emp.natureza_descricao || emp.natureza_juridica_descricao || lookupResult.natureza_juridica || '';
+            const situacao = est.situacao_cadastral || lookupResult.situacao_cadastral || '';
+            const situacaoDesc = est.situacao_cadastral_descricao || lookupResult.situacao_cadastral_descricao || '';
+            const dataAbertura = est.data_inicio_atividade || lookupResult.data_inicio_atividade || lookupResult.data_abertura || '';
+            
+            // CNAE
+            const cnaePrincipal = est.cnae_fiscal_principal || est.cnae_principal || lookupResult.cnae_fiscal_principal || lookupResult.cnae_principal || '';
+            const cnaePrincipalDesc = est.cnae_fiscal_principal_descricao || est.cnae_principal_descricao || lookupResult.cnae_fiscal_principal_descricao || '';
+            const cnaesSecundarios = est.cnaes_secundarios || est.cnaes_fiscais_secundarios || lookupResult.cnaes_secundarios || [];
+            
+            // Endereço
+            const tipoLogradouro = est.tipo_logradouro || lookupResult.tipo_logradouro || '';
+            const logradouro = est.logradouro || lookupResult.logradouro || '';
+            const numero = est.numero || lookupResult.numero || '';
+            const complemento = est.complemento || lookupResult.complemento || '';
+            const bairro = est.bairro || lookupResult.bairro || '';
+            const municipio = est.municipio_nome || est.municipio || lookupResult.municipio || lookupResult.municipio_nome || '';
+            const uf = est.uf || lookupResult.uf || '';
+            const cep = est.cep || lookupResult.cep || '';
+            
+            // Contato
+            const tel1 = est.ddd_telefone_1 || lookupResult.ddd_telefone_1 || lookupResult.telefone_1 || lookupResult.telefone || '';
+            const tel2 = est.ddd_telefone_2 || lookupResult.ddd_telefone_2 || lookupResult.telefone_2 || '';
+            const fax = est.ddd_fax || lookupResult.ddd_fax || '';
+            const email = est.email || est.correio_eletronico || lookupResult.email || lookupResult.correio_eletronico || '';
+            
+            // Porte
+            const porte = emp.porte_empresa_descricao || emp.porte || lookupResult.porte_empresa_descricao || lookupResult.porte || '';
+            
+            // Simples / MEI
+            const simples = lookupResult.simples || {};
+
+            return (
             <div className="grid gap-4 md:grid-cols-2">
               <Card>
                 <CardHeader>
@@ -707,33 +748,36 @@ export default function CnpjPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <InfoRow label="Razão Social" value={lookupResult.empresa?.razao_social} />
-                  <InfoRow label="Nome Fantasia" value={lookupResult.estabelecimento?.nome_fantasia} />
-                  <InfoRow label="Capital Social" value={lookupResult.empresa?.capital_social ? `R$ ${Number(lookupResult.empresa.capital_social).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : null} />
-                  <InfoRow label="Natureza Jurídica" value={lookupResult.empresa?.natureza_descricao} />
-                  {lookupResult.estabelecimento?.cnae_principal && (
+                  <InfoRow label="Razão Social" value={razaoSocial} />
+                  <InfoRow label="Nome Fantasia" value={nomeFantasia} />
+                  <InfoRow label="Capital Social" value={capitalSocial ? `R$ ${Number(capitalSocial).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : null} />
+                  <InfoRow label="Natureza Jurídica" value={natureza} />
+                  <InfoRow label="Porte" value={porte} />
+                  
+                  {cnaePrincipal && (
                     <div className="space-y-1">
                       <span className="text-sm text-muted-foreground">CNAE Principal</span>
-                      <div>
+                      <div className="flex items-center gap-2">
                         <Badge 
                           variant="outline" 
                           className="cursor-pointer hover:bg-primary/10 hover:border-primary transition-colors"
-                          onClick={() => useCnaeAsFilter(lookupResult.estabelecimento.cnae_principal)}
+                          onClick={() => useCnaeAsFilter(cnaePrincipal)}
                           title="Usar como filtro na pesquisa avançada"
                         >
-                          {lookupResult.estabelecimento.cnae_principal}
+                          {cnaePrincipal}
                           <Search className="h-3 w-3 ml-1" />
                         </Badge>
+                        {cnaePrincipalDesc && <span className="text-xs text-muted-foreground">{cnaePrincipalDesc}</span>}
                       </div>
                     </div>
                   )}
                   
-                  {lookupResult.estabelecimento?.cnaes_secundarios && lookupResult.estabelecimento.cnaes_secundarios.length > 0 && (
+                  {cnaesSecundarios && cnaesSecundarios.length > 0 && (
                     <div className="space-y-2">
-                      <span className="text-sm text-muted-foreground">CNAEs Secundários ({lookupResult.estabelecimento.cnaes_secundarios.length})</span>
+                      <span className="text-sm text-muted-foreground">CNAEs Secundários ({cnaesSecundarios.length})</span>
                       <div className="flex flex-wrap gap-1.5">
-                        {lookupResult.estabelecimento.cnaes_secundarios.map((cnae: any, idx: number) => {
-                          const code = typeof cnae === 'string' ? cnae : cnae.codigo || cnae.code || cnae.cnae || '';
+                        {cnaesSecundarios.map((cnae: any, idx: number) => {
+                          const code = typeof cnae === 'string' ? cnae : cnae.codigo || cnae.code || cnae.cnae || cnae.subclasse || '';
                           const desc = typeof cnae === 'object' ? (cnae.descricao || cnae.description || '') : '';
                           if (!code) return null;
                           return (
@@ -754,10 +798,27 @@ export default function CnpjPage() {
                     </div>
                   )}
 
-                  <InfoRow label="Data de Abertura" value={lookupResult.estabelecimento?.data_inicio_atividade ? formatDateDisplay(lookupResult.estabelecimento.data_inicio_atividade) : null} />
+                  <InfoRow label="Data de Abertura" value={dataAbertura ? formatDateDisplay(dataAbertura) : null} />
+                  
+                  {/* Simples Nacional / MEI */}
+                  {(simples.opcao_pelo_simples !== undefined || simples.opcao_pelo_mei !== undefined) && (
+                    <div className="flex gap-2 flex-wrap">
+                      {simples.opcao_pelo_simples !== undefined && (
+                        <Badge variant={simples.opcao_pelo_simples ? 'default' : 'secondary'}>
+                          Simples: {simples.opcao_pelo_simples ? 'Sim' : 'Não'}
+                        </Badge>
+                      )}
+                      {simples.opcao_pelo_mei !== undefined && (
+                        <Badge variant={simples.opcao_pelo_mei ? 'default' : 'secondary'}>
+                          MEI: {simples.opcao_pelo_mei ? 'Sim' : 'Não'}
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                  
                   <div className="pt-2">
-                    <Badge variant={lookupResult.estabelecimento?.situacao_cadastral === '02' ? 'default' : 'destructive'}>
-                      {lookupResult.estabelecimento?.situacao_cadastral === '02' ? 'Ativa' : `Situação: ${lookupResult.estabelecimento?.situacao_cadastral || 'N/A'}`}
+                    <Badge variant={situacao === '02' || situacaoDesc?.toLowerCase() === 'ativa' ? 'default' : 'destructive'}>
+                      {situacao === '02' || situacaoDesc?.toLowerCase() === 'ativa' ? 'Ativa' : situacaoDesc || `Situação: ${situacao || 'N/A'}`}
                     </Badge>
                   </div>
                 </CardContent>
@@ -771,25 +832,26 @@ export default function CnpjPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <InfoRow label="Logradouro" value={`${lookupResult.estabelecimento?.logradouro || ''}, ${lookupResult.estabelecimento?.numero || ''}`} />
-                  <InfoRow label="Complemento" value={lookupResult.estabelecimento?.complemento} />
-                  <InfoRow label="Bairro" value={lookupResult.estabelecimento?.bairro} />
-                  <InfoRow label="Município" value={lookupResult.estabelecimento?.municipio_nome} />
-                  <InfoRow label="UF" value={lookupResult.estabelecimento?.uf} />
-                  <InfoRow label="CEP" value={lookupResult.estabelecimento?.cep} />
+                  <InfoRow label="Logradouro" value={logradouro ? `${tipoLogradouro} ${logradouro}, ${numero}`.trim() : null} />
+                  <InfoRow label="Complemento" value={complemento} />
+                  <InfoRow label="Bairro" value={bairro} />
+                  <InfoRow label="Município" value={municipio} />
+                  <InfoRow label="UF" value={uf} />
+                  <InfoRow label="CEP" value={cep} />
                   <Separator className="my-2" />
-                  <InfoRow label="Telefone 1" value={lookupResult.estabelecimento?.ddd_telefone_1 ? `(${lookupResult.estabelecimento.ddd_telefone_1})` : null} />
-                  <InfoRow label="Telefone 2" value={lookupResult.estabelecimento?.ddd_telefone_2 ? `(${lookupResult.estabelecimento.ddd_telefone_2})` : null} />
-                  <InfoRow label="E-mail" value={lookupResult.estabelecimento?.email} />
+                  <InfoRow label="Telefone 1" value={tel1 ? (tel1.includes('(') ? tel1 : `(${tel1})`) : null} />
+                  <InfoRow label="Telefone 2" value={tel2 ? (tel2.includes('(') ? tel2 : `(${tel2})`) : null} />
+                  {fax && <InfoRow label="Fax" value={`(${fax})`} />}
+                  <InfoRow label="E-mail" value={email} />
                 </CardContent>
               </Card>
 
-              {lookupResult.socios && lookupResult.socios.length > 0 && (
+              {socios && socios.length > 0 && (
                 <Card className="md:col-span-2">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-lg">
                       <Users className="h-5 w-5" />
-                      Sócios ({lookupResult.socios.length})
+                      Sócios ({socios.length})
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -802,11 +864,11 @@ export default function CnpjPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {lookupResult.socios.map((socio: any, i: number) => (
+                        {socios.map((socio: any, i: number) => (
                           <TableRow key={i}>
-                            <TableCell className="font-medium">{socio.nome_socio}</TableCell>
-                            <TableCell>{socio.qualificacao_descricao}</TableCell>
-                            <TableCell>{socio.data_entrada ? formatDateDisplay(socio.data_entrada) : '-'}</TableCell>
+                            <TableCell className="font-medium">{socio.nome_socio || socio.nome || ''}</TableCell>
+                            <TableCell>{socio.qualificacao_descricao || socio.qualificacao || socio.qualificacao_socio || ''}</TableCell>
+                            <TableCell>{(socio.data_entrada || socio.data_entrada_sociedade) ? formatDateDisplay(socio.data_entrada || socio.data_entrada_sociedade) : '-'}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -815,7 +877,8 @@ export default function CnpjPage() {
                 </Card>
               )}
             </div>
-          )}
+            );
+          })()}
         </TabsContent>
 
         {/* Tab: Pesquisa Avançada */}

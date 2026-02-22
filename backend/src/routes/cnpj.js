@@ -35,7 +35,8 @@ router.post('/lookup', authenticate, async (req, res) => {
     const response = await fetch(`https://cnpj.gleego.com.br/api/v1/cnpj/${cleanCnpj}`, {
       headers: {
         'Authorization': `Bearer ${apiToken}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Accept': 'application/json; charset=utf-8'
       }
     });
 
@@ -48,7 +49,29 @@ router.post('/lookup', authenticate, async (req, res) => {
       });
     }
 
-    const data = await response.json();
+    // Handle potential encoding issues (Latin-1 -> UTF-8)
+    const contentType = response.headers.get('content-type') || '';
+    let data;
+    if (contentType.includes('charset=iso-8859-1') || contentType.includes('charset=latin1')) {
+      const buffer = await response.arrayBuffer();
+      const text = new TextDecoder('iso-8859-1').decode(buffer);
+      data = JSON.parse(text);
+    } else {
+      // Try UTF-8 first, if we detect encoding issues, retry with Latin-1
+      const buffer = await response.arrayBuffer();
+      let text = new TextDecoder('utf-8').decode(buffer);
+      // Check for common encoding artifacts (replacement character)
+      if (text.includes('\ufffd') || text.includes('�')) {
+        text = new TextDecoder('iso-8859-1').decode(buffer);
+      }
+      data = JSON.parse(text);
+    }
+    
+    // Log structure for debugging
+    console.log('CNPJ Lookup response keys:', Object.keys(data));
+    if (data.estabelecimento) console.log('estabelecimento keys:', Object.keys(data.estabelecimento));
+    if (data.empresa) console.log('empresa keys:', Object.keys(data.empresa));
+    
     res.json(data);
   } catch (error) {
     console.error('Erro ao consultar CNPJ:', error);
