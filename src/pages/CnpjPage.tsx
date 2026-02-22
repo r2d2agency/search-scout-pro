@@ -824,7 +824,7 @@ export default function CnpjPage() {
                 Pesquisa Avançada
               </CardTitle>
               <CardDescription>
-                Busque empresas por razão social, CNAE, localização e data de abertura.
+                Busque empresas por razão social, CNAE e localização.
                 Os resultados são acumulados — carregue mais páginas e salve tudo de uma vez.
               </CardDescription>
             </CardHeader>
@@ -944,7 +944,7 @@ export default function CnpjPage() {
               <div>
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground mb-3 block">
                   <CalendarIcon className="h-3 w-3 inline mr-1" />
-                  Data de Abertura (máx. 1 ano de intervalo)
+                  Data de Abertura <span className="text-muted-foreground font-normal normal-case">(opcional — máx. 1 ano de intervalo)</span>
                 </Label>
                 
                 <div className="flex flex-wrap gap-2 mb-4">
