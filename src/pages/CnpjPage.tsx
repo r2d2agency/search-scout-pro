@@ -168,8 +168,9 @@ export default function CnpjPage() {
   const [enrichProgress, setEnrichProgress] = useState({ current: 0, total: 0 });
   const [enrichResults, setEnrichResults] = useState<Map<string, any>>(new Map());
 
-  // Ref for scrolling to results
+  // Ref for scrolling to results/progress
   const resultsRef = useRef<HTMLDivElement>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
 
   // Load saved queries when tab changes
   useEffect(() => {
@@ -293,6 +294,10 @@ export default function CnpjPage() {
     }
 
     setIsSearchLoading(true);
+    // Scroll to progress area immediately on mobile
+    setTimeout(() => {
+      progressRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
     try {
       const params: any = { ...searchFilters, page, limit: MAX_RESULTS };
       if (dateFrom && dateTo) {
@@ -1157,9 +1162,11 @@ export default function CnpjPage() {
           )}
 
           {/* Progress bar */}
-          {isSearchLoading && (
-            <SearchProgress isLoading={true} source="cnpj" />
-          )}
+          <div ref={progressRef}>
+            {isSearchLoading && (
+              <SearchProgress isLoading={true} source="cnpj" />
+            )}
+          </div>
 
           {/* Resultados acumulados */}
           {accumulatedResults.length > 0 && (
