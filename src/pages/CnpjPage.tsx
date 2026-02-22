@@ -305,10 +305,31 @@ export default function CnpjPage() {
         params.data_abertura_lte = toApiDate(dateTo);
       }
       const data = await cnpjApi.search(params);
-      const results = data.results || data.empresas || data.data || data || [];
-      const newResults = Array.isArray(results) ? results.slice(0, MAX_RESULTS) : [];
+      console.log('CNPJ search raw response:', JSON.stringify(data).substring(0, 500));
+      console.log('CNPJ search response keys:', typeof data === 'object' ? Object.keys(data) : typeof data);
       
-      setTotalResults(data.total || data.count || data.total_count || data.totalResults || (Array.isArray(results) ? results.length : 0));
+      // Try multiple possible response structures
+      let results: any[] = [];
+      if (Array.isArray(data)) {
+        results = data;
+      } else if (data?.results && Array.isArray(data.results)) {
+        results = data.results;
+      } else if (data?.empresas && Array.isArray(data.empresas)) {
+        results = data.empresas;
+      } else if (data?.data && Array.isArray(data.data)) {
+        results = data.data;
+      } else if (data?.estabelecimentos && Array.isArray(data.estabelecimentos)) {
+        results = data.estabelecimentos;
+      } else if (data?.items && Array.isArray(data.items)) {
+        results = data.items;
+      }
+      
+      const newResults = results.slice(0, MAX_RESULTS);
+      const total = data?.total || data?.count || data?.total_count || data?.totalResults || data?.pagination?.total || results.length;
+      
+      console.log('CNPJ search extracted results count:', newResults.length, 'total:', total);
+      
+      setTotalResults(total);
 
       // Accumulate: append new results, deduplicating by CNPJ
       setAccumulatedResults(prev => {
