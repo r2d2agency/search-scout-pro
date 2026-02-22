@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { cnpjApi, savedSearchesApi, enrichApi } from '@/lib/apiClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -168,6 +168,9 @@ export default function CnpjPage() {
   const [enrichProgress, setEnrichProgress] = useState({ current: 0, total: 0 });
   const [enrichResults, setEnrichResults] = useState<Map<string, any>>(new Map());
 
+  // Ref for scrolling to results
+  const resultsRef = useRef<HTMLDivElement>(null);
+
   // Load saved queries when tab changes
   useEffect(() => {
     if (activeTab === 'saved') {
@@ -310,6 +313,11 @@ export default function CnpjPage() {
       });
       
       setSearchPage(page);
+
+      // Scroll to results on mobile
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 200);
     } catch (error: any) {
       toast({ title: 'Erro na pesquisa', description: error.message, variant: 'destructive' });
     } finally {
@@ -640,7 +648,7 @@ export default function CnpjPage() {
   const hasMorePages = searchPage < totalPages && totalResults > 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0 w-full overflow-x-hidden">
       <div>
         <h1 className="text-3xl font-bold tracking-tight neon-text-cyan flex items-center gap-2">
           <Building2 className="h-8 w-8" />
@@ -1155,7 +1163,7 @@ export default function CnpjPage() {
 
           {/* Resultados acumulados */}
           {accumulatedResults.length > 0 && (
-            <Card>
+          <Card ref={resultsRef} className="min-w-0">
               <CardHeader>
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   <CardTitle className="flex items-center gap-2">
@@ -1218,7 +1226,91 @@ export default function CnpjPage() {
                   </div>
                 )}
 
-                <div className="overflow-x-auto"><Table>
+                {/* Mobile: Card layout */}
+                <div className="block md:hidden space-y-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Checkbox
+                      checked={selectedSearchIds.size === accumulatedResults.length && accumulatedResults.length > 0}
+                      onCheckedChange={toggleAllSearch}
+                    />
+                    <span className="text-xs text-muted-foreground">Selecionar todos</span>
+                  </div>
+                  {accumulatedResults.map((r: any, i: number) => {
+                    const key = getResultKey(r, i);
+                    const fullCnpj = `${r.cnpj_basico || ''}${r.cnpj_ordem || ''}${r.cnpj_dv || ''}`;
+                    const ed = enrichResults.size > 0 ? getEnrichData(r) : null;
+                    return (
+                      <div
+                        key={key}
+                        className={cn(
+                          "p-3 rounded-lg border border-border/50 space-y-2",
+                          selectedSearchIds.has(key) && "bg-primary/5 border-primary/30"
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Checkbox
+                              checked={selectedSearchIds.has(key)}
+                              onCheckedChange={() => toggleSearchSelection(key)}
+                            />
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm truncate">{r.razao_social || '-'}</p>
+                              {r.nome_fantasia && (
+                                <p className="text-xs text-muted-foreground truncate">{r.nome_fantasia}</p>
+                              )}
+                            </div>
+                          </div>
+                          <Badge variant={r.situacao_cadastral === '02' ? 'default' : 'secondary'} className="text-xs shrink-0">
+                            {r.situacao_cadastral === '02' ? 'Ativa' : r.situacao_cadastral}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                          <div>
+                            <span className="text-muted-foreground">CNPJ: </span>
+                            <span
+                              className="font-mono cursor-pointer text-primary"
+                              onClick={() => {
+                                if (fullCnpj.length === 14) {
+                                  setCnpj(formatCnpj(fullCnpj));
+                                  setActiveTab('lookup');
+                                  handleLookupDirect(fullCnpj);
+                                }
+                              }}
+                            >
+                              {formatCnpj(fullCnpj)}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">UF: </span>
+                            <span>{r.uf} - {r.municipio_nome || r.municipio || '-'}</span>
+                          </div>
+                          {r.ddd_telefone_1 && (
+                            <div>
+                              <span className="text-muted-foreground">Tel: </span>
+                              <span>({r.ddd_telefone_1})</span>
+                            </div>
+                          )}
+                          <div>
+                            <span className="text-muted-foreground">Abertura: </span>
+                            <span>{r.data_inicio_atividade ? formatDateDisplay(r.data_inicio_atividade) : '-'}</span>
+                          </div>
+                        </div>
+                        {ed && !ed.skipped && (
+                          <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-border/30">
+                            {ed.googleName && <span className="text-xs text-primary">{ed.googleName}</span>}
+                            {ed.phoneFormatted && <span className="text-xs">{ed.phoneFormatted}</span>}
+                            {ed.whatsappValid === true && (
+                              <Badge className="text-xs h-5 bg-green-600/20 text-green-400 border-green-600/30"><MessageCircle className="h-2.5 w-2.5 mr-0.5" />WhatsApp</Badge>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop: Table layout */}
+                <div className="hidden md:block overflow-x-auto"><Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[40px]">
