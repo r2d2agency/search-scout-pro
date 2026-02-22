@@ -128,8 +128,37 @@ router.post('/search', authenticate, async (req, res) => {
       });
     }
 
-    const data = await response.json();
-    res.json(data);
+    // Handle potential encoding issues (Latin-1 -> UTF-8) same as lookup
+    const contentType = response.headers.get('content-type') || '';
+    let data;
+    const buffer = await response.arrayBuffer();
+    if (contentType.includes('charset=iso-8859-1') || contentType.includes('charset=latin1')) {
+      const text = new TextDecoder('iso-8859-1').decode(buffer);
+      data = JSON.parse(text);
+    } else {
+      let text = new TextDecoder('utf-8').decode(buffer);
+      if (text.includes('\ufffd') || text.includes('�')) {
+        text = new TextDecoder('iso-8859-1').decode(buffer);
+      }
+      data = JSON.parse(text);
+    }
+    
+    // Log response structure for debugging
+    console.log('CNPJ Search response type:', typeof data, 'isArray:', Array.isArray(data));
+    if (typeof data === 'object' && !Array.isArray(data)) {
+      console.log('CNPJ Search response keys:', Object.keys(data));
+      if (data.total !== undefined) console.log('total:', data.total);
+      if (data.count !== undefined) console.log('count:', data.count);
+    } else if (Array.isArray(data)) {
+      console.log('CNPJ Search array length:', data.length);
+    }
+    
+    // Normalize: if the API returns a raw array, wrap it
+    if (Array.isArray(data)) {
+      res.json({ results: data, total: data.length });
+    } else {
+      res.json(data);
+    }
   } catch (error) {
     console.error('Erro na pesquisa CNPJ:', error);
     res.status(500).json({ message: 'Erro na pesquisa de empresas' });
