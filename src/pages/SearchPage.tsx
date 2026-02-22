@@ -400,24 +400,24 @@ const SearchPage = () => {
     <div className="space-y-4">
       {/* Seletor de fonte */}
       <Tabs value={searchSource} onValueChange={(v) => setSearchSource(v as 'google' | 'instagram' | 'linkedin')} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-3">
-          <TabsTrigger value="google" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
-            Google Meu Negócio
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="google" className="flex items-center gap-1 text-xs md:text-sm md:gap-2">
+            <Building2 className="h-4 w-4 shrink-0" />
+            <span className="truncate">Google Meu Negócio</span>
           </TabsTrigger>
-          <TabsTrigger value="instagram" className="flex items-center gap-2">
-            <Instagram className="h-4 w-4" />
+          <TabsTrigger value="instagram" className="flex items-center gap-1 text-xs md:text-sm md:gap-2">
+            <Instagram className="h-4 w-4 shrink-0" />
             Instagram
           </TabsTrigger>
-          <TabsTrigger value="linkedin" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
+          <TabsTrigger value="linkedin" className="flex items-center gap-1 text-xs md:text-sm md:gap-2">
+            <Users className="h-4 w-4 shrink-0" />
             LinkedIn
           </TabsTrigger>
         </TabsList>
       </Tabs>
 
       {/* Search Bar */}
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input
@@ -425,36 +425,37 @@ const SearchPage = () => {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={searchSource === 'instagram' 
-              ? "Digite um termo (ex: stockzero, clinicamedica) - retorna perfis similares"
-              : "clinica medica em rio preto"
+              ? "Ex: stockzero, clinicamedica"
+              : "Ex: clínica médica em rio preto"
             }
             className="pl-10 h-12 text-base"
           />
         </div>
-        <Button 
-          onClick={handleNewSearch} 
-          disabled={isLoading || !query.trim()}
-          className="h-12 px-6"
-        >
-          {isLoading ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : (
-            <>
-              <Search className="h-5 w-5 mr-2" />
-              Buscar
-            </>
-          )}
-        </Button>
-        
-        {/* Pesquisas Salvas */}
-        {isAuthenticated && (
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="h-12" onClick={loadSavedSearches}>
-                <FolderOpen className="h-5 w-5 mr-2" />
-                Pesquisas Salvas
-              </Button>
-            </DialogTrigger>
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleNewSearch} 
+            disabled={isLoading || !query.trim()}
+            className="h-12 px-6 flex-1 sm:flex-none"
+          >
+            {isLoading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <>
+                <Search className="h-5 w-5 mr-2" />
+                Buscar
+              </>
+            )}
+          </Button>
+          
+          {/* Pesquisas Salvas */}
+          {isAuthenticated && (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="h-12" onClick={loadSavedSearches}>
+                  <FolderOpen className="h-5 w-5 md:mr-2" />
+                  <span className="hidden md:inline">Pesquisas Salvas</span>
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Pesquisas Salvas</DialogTitle>
@@ -498,6 +499,7 @@ const SearchPage = () => {
             </DialogContent>
           </Dialog>
         )}
+        </div>
       </div>
 
       {/* Dica contextual */}
