@@ -207,6 +207,8 @@ export default function CnpjPage() {
     return null;
   }, [searchFilters.uf, searchFilters.municipio, searchFilters.cnae, searchFilters.razao_social]);
 
+  const isSearchByCnae = !!searchFilters.cnae.trim() && !searchFilters.razao_social.trim();
+
   const dateRangeError = useMemo(() => {
     if (dateFrom && dateTo) {
       const diff = differenceInDays(dateTo, dateFrom);
@@ -215,8 +217,9 @@ export default function CnpjPage() {
     }
     if (dateFrom && !dateTo) return 'Selecione também a data final';
     if (!dateFrom && dateTo) return 'Selecione também a data inicial';
+    if (isSearchByCnae && !dateFrom && !dateTo) return 'Data de abertura é obrigatória para pesquisa por CNAE';
     return null;
-  }, [dateFrom, dateTo]);
+  }, [dateFrom, dateTo, isSearchByCnae]);
 
   const dateRangeLabel = useMemo(() => {
     if (dateFrom && dateTo) {
@@ -944,7 +947,10 @@ export default function CnpjPage() {
               <div>
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground mb-3 block">
                   <CalendarIcon className="h-3 w-3 inline mr-1" />
-                  Data de Abertura <span className="text-muted-foreground font-normal normal-case">(opcional — máx. 1 ano de intervalo)</span>
+                  Data de Abertura {isSearchByCnae 
+                    ? <span className="text-destructive font-normal normal-case">* obrigatória para pesquisa por CNAE (máx. 1 ano)</span>
+                    : <span className="text-muted-foreground font-normal normal-case">(opcional — máx. 1 ano de intervalo)</span>
+                  }
                 </Label>
                 
                 <div className="flex flex-wrap gap-2 mb-4">
