@@ -81,6 +81,31 @@ export async function deleteLead(id: string): Promise<void> {
   });
 }
 
+// Normalizar número de WhatsApp para formato 55DDDnúmero
+function normalizeWhatsApp(phone: string | null): string {
+  if (!phone) return '';
+  // Remove tudo que não é dígito
+  let digits = phone.replace(/\D/g, '');
+  if (!digits) return '';
+  // Se já começa com 55 e tem 12-13 dígitos, está ok
+  if (digits.startsWith('55') && digits.length >= 12 && digits.length <= 13) {
+    return digits;
+  }
+  // Se começa com +55, já removemos o +
+  if (digits.startsWith('55') && digits.length < 12) {
+    return digits;
+  }
+  // Se não começa com 55, adicionar
+  if (!digits.startsWith('55')) {
+    // Se tem 10-11 dígitos (DDD + número), adicionar 55
+    if (digits.length >= 10 && digits.length <= 11) {
+      digits = '55' + digits;
+    }
+    // Se tem 8-9 dígitos (só número sem DDD), não tem como saber o DDD
+  }
+  return digits;
+}
+
 // Exportar leads para XLSX com dados completos
 export function exportToXLSX(leads: Lead[]): void {
   import('xlsx').then(XLSX => {
@@ -92,7 +117,7 @@ export function exportToXLSX(leads: Lead[]): void {
         'Empresa': lead.company || '',
         'Website': lead.website || '',
         'Telefone': lead.phone || '',
-        'WhatsApp': lead.whatsapp || '',
+        'WhatsApp': normalizeWhatsApp(lead.whatsapp || lead.phone),
         'Email': lead.email || '',
         'WhatsApp Válido': lead.whatsappValid === null ? 'Não verificado' : lead.whatsappValid ? 'Sim' : 'Não',
         'Fonte': lead.source || '',
