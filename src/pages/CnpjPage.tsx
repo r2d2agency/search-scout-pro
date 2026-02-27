@@ -233,11 +233,15 @@ export default function CnpjPage() {
   };
 
   // Open detail modal with preloaded row data (instant)
+  const [detailEnrichData, setDetailEnrichData] = useState<any>(null);
   const openDetailModal = (row: any) => {
     const fullCnpj = `${row.cnpj_basico || ''}${row.cnpj_ordem || ''}${row.cnpj_dv || ''}`;
     if (fullCnpj.length === 14) {
       setDetailCnpj(fullCnpj);
       setDetailPreloadedData(row);
+      // Check enrichment data from Map or from saved lead fields
+      const ed = enrichResults.get(fullCnpj) || (row.googleName || row.enrich_google_name ? row : null);
+      setDetailEnrichData(ed);
       setDetailModalOpen(true);
     }
   };
@@ -1612,9 +1616,10 @@ export default function CnpjPage() {
         open={detailModalOpen}
         onOpenChange={(open) => {
           setDetailModalOpen(open);
-          if (!open) setDetailPreloadedData(null);
+          if (!open) { setDetailPreloadedData(null); setDetailEnrichData(null); }
         }}
         preloadedData={detailPreloadedData}
+        enrichData={detailEnrichData}
         onUseCnaeAsFilter={(cnae) => {
           const code = cnae.replace(/[.\-/]/g, '').substring(0, 7);
           setSearchFilters(f => ({ ...f, cnae: code }));
