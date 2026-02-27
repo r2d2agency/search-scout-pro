@@ -489,6 +489,7 @@ export const cnpjApi = {
 
   async search(filters: {
     razao_social?: string;
+    nome_fantasia?: string;
     cnae?: string;
     municipio?: string;
     uf?: string;
