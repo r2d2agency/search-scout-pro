@@ -337,6 +337,7 @@ export default function CnpjPage() {
         params.data_abertura_gte = toApiDate(dateFrom);
         params.data_abertura_lte = toApiDate(dateTo);
       }
+      console.log('CNPJ search sending params:', JSON.stringify(params));
       const data = await cnpjApi.search(params);
       const results = extractResults(data);
       const newResults = results.slice(0, MAX_RESULTS);
@@ -372,6 +373,7 @@ export default function CnpjPage() {
     try {
       const params: any = { razao_social: nameSearchFilters.razao_social, municipio: nameSearchFilters.municipio, uf: nameSearchFilters.uf, page, limit: MAX_RESULTS };
       if (nameSearchFilters.situacao) params.situacao = nameSearchFilters.situacao;
+      console.log('CNPJ name search sending params:', JSON.stringify(params));
       const data = await cnpjApi.search(params);
       const results = extractResults(data);
       const newResults = results.slice(0, MAX_RESULTS);
