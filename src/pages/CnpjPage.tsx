@@ -235,14 +235,15 @@ export default function CnpjPage() {
   // Open detail modal with preloaded row data (instant)
   const [detailEnrichData, setDetailEnrichData] = useState<any>(null);
   const openDetailModal = (row: any) => {
-    const fullCnpj = `${row.cnpj_basico || ''}${row.cnpj_ordem || ''}${row.cnpj_dv || ''}`.replace(/\D/g, '');
-    if (!fullCnpj || fullCnpj.length < 11) {
+    const composedCnpj = `${row.cnpj_basico || ''}${row.cnpj_ordem || ''}${row.cnpj_dv || ''}`;
+    const fullCnpj = (row.cnpj || composedCnpj || '').toString().replace(/\D/g, '');
+    if (!fullCnpj || fullCnpj.length < 8) {
       console.warn('openDetailModal: CNPJ inválido', fullCnpj, row);
       return;
     }
-    setDetailCnpj(fullCnpj);
+    setDetailCnpj(fullCnpj.padStart(14, '0'));
     setDetailPreloadedData(row);
-    const ed = enrichResults.get(fullCnpj) || (row.googleName || row.enrich_google_name ? row : null);
+    const ed = enrichResults.get(fullCnpj) || enrichResults.get(fullCnpj.padStart(14, '0')) || (row.googleName || row.enrich_google_name ? row : null);
     setDetailEnrichData(ed);
     setDetailModalOpen(true);
   };
@@ -366,6 +367,9 @@ export default function CnpjPage() {
         return [...prev, ...unique];
       });
       setSearchPage(page);
+      if (page === 1 && total === 0) {
+        toast({ title: 'Nenhum resultado', description: 'Tente outro município, ampliar período ou buscar por Razão Social.' });
+      }
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
     } catch (error: any) {
       toast({ title: 'Erro na pesquisa', description: error.message, variant: 'destructive' });
@@ -403,6 +407,9 @@ export default function CnpjPage() {
         return [...prev, ...unique];
       });
       setNameSearchPage(page);
+      if (page === 1 && total === 0) {
+        toast({ title: 'Nenhum resultado', description: 'Tente usar apenas parte do nome da empresa e manter apenas UF.' });
+      }
     } catch (error: any) {
       toast({ title: 'Erro na pesquisa', description: error.message, variant: 'destructive' });
     } finally {

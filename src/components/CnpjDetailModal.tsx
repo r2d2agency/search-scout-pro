@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -120,7 +121,7 @@ export function CnpjDetailModal({ cnpj, open, onOpenChange, onUseCnaeAsFilter, p
             <Building2 className="h-5 w-5" />
             {isLoading ? 'Carregando...' : (razaoSocial || 'Detalhes da Empresa')}
           </DialogTitle>
-          <p id="cnpj-detail-desc" className="sr-only">Detalhes completos da empresa</p>
+          <DialogDescription id="cnpj-detail-desc" className="sr-only">Detalhes completos da empresa</DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[75vh] px-6 pb-6">
