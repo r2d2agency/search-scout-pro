@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -25,6 +25,8 @@ interface CnpjDetailModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUseCnaeAsFilter?: (cnae: string) => void;
+  /** Pre-loaded data from search results to avoid re-fetching */
+  preloadedData?: any;
 }
 
 function formatDateDisplay(dateStr: string) {
@@ -42,7 +44,7 @@ function InfoRow({ label, value }: { label: string; value: string | null | undef
   );
 }
 
-export function CnpjDetailModal({ cnpj, open, onOpenChange, onUseCnaeAsFilter }: CnpjDetailModalProps) {
+export function CnpjDetailModal({ cnpj, open, onOpenChange, onUseCnaeAsFilter, preloadedData }: CnpjDetailModalProps) {
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -53,26 +55,27 @@ export function CnpjDetailModal({ cnpj, open, onOpenChange, onUseCnaeAsFilter }:
     }
   };
 
-  // Load data when opened
-  const loadData = async () => {
-    if (!cnpj) return;
+  // Use preloaded data or fetch from API
+  useEffect(() => {
+    if (!open || !cnpj) return;
+    
+    if (preloadedData) {
+      setData(preloadedData);
+      setIsLoading(false);
+      return;
+    }
+
+    // Only fetch if no preloaded data
     setIsLoading(true);
     setData(null);
-    try {
-      const result = await cnpjApi.lookup(cnpj);
-      setData(result);
-    } catch (error: any) {
-      toast({ title: 'Erro na consulta', description: error.message, variant: 'destructive' });
-      handleOpenChange(false);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Trigger load when dialog opens
-  if (open && !data && !isLoading && cnpj) {
-    loadData();
-  }
+    cnpjApi.lookup(cnpj)
+      .then(result => setData(result))
+      .catch((error: any) => {
+        toast({ title: 'Erro na consulta', description: error.message, variant: 'destructive' });
+        handleOpenChange(false);
+      })
+      .finally(() => setIsLoading(false));
+  }, [open, cnpj, preloadedData]);
 
   const emp = data?.empresa || data || {};
   const est = data?.estabelecimento || data || {};
