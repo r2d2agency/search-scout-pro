@@ -249,6 +249,10 @@ router.post('/search', authenticate, async (req, res) => {
       }
 
       console.log('CNPJ Search parallel results - razao:', razaoCount, 'fantasia:', fantasiaCount);
+      if (razaoRes.status === 'rejected') console.error('Razao search rejected:', razaoRes.reason);
+      if (fantasiaRes.status === 'rejected') console.error('Fantasia search rejected:', fantasiaRes.reason);
+      if (razaoRes.status === 'fulfilled' && !razaoRes.value.ok) console.error('Razao search HTTP error:', razaoRes.value.status);
+      if (fantasiaRes.status === 'fulfilled' && !fantasiaRes.value.ok) console.error('Fantasia search HTTP error:', fantasiaRes.value.status);
 
       if (fantasiaCount > razaoCount) {
         bestData = fantasiaData;
