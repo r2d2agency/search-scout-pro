@@ -213,62 +213,80 @@ router.post('/search', authenticate, async (req, res) => {
       uf, situacao, data_abertura_gte, data_abertura_lte, limit, page,
     };
 
-    // Chamada direta sem loop grande de variantes (evita timeout 504/502)
-    const params = buildSearchParams(baseParamsInput);
-
-    console.log('CNPJ Search params:', params.toString());
-
-    let response;
-    try {
-      response = await doGleegoSearch(apiToken, params);
-    } catch (err) {
-      console.error('Gleego search timeout/error:', err.message);
-      return res.status(504).json({ message: 'Timeout na consulta. Tente com filtros mais específicos.' });
-    }
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Erro API CNPJ Search:', response.status, errorText);
-      return res.status(response.status).json({ message: 'Erro na pesquisa de CNPJ', details: errorText });
-    }
+    // Se pesquisa por nome (sem CNAE) e apenas um campo preenchido, buscar ambos em paralelo
+    const nameTerm = razaoSocialTerm || nomeFantasiaTerm;
+    const isNameOnlySearch = !cnae && nameTerm && !(razaoSocialTerm && nomeFantasiaTerm);
 
     let bestData;
-    try {
-      bestData = await parseGleegoResponse(response);
-    } catch (err) {
-      console.error('Erro ao parsear resposta:', err);
-      return res.status(502).json({ message: 'Resposta inválida da API' });
-    }
+    let bestCount = 0;
 
-    let bestCount = getResultCount(bestData);
+    if (isNameOnlySearch) {
+      // Buscar por razao_social E nome_fantasia em paralelo
+      const razaoParams = buildSearchParams({ ...baseParamsInput, razao_social: nameTerm, nome_fantasia: null });
+      const fantasiaParams = buildSearchParams({ ...baseParamsInput, razao_social: null, nome_fantasia: nameTerm });
 
-    // Busca por nome com fallback: se não achar por Razão Social, tenta Nome Fantasia (e vice-versa)
-    if (bestCount === 0 && !cnae) {
-      const fallbackTerm = razaoSocialTerm || nomeFantasiaTerm;
-      if (fallbackTerm && !(razaoSocialTerm && nomeFantasiaTerm)) {
-        const fallbackParams = buildSearchParams({
-          ...baseParamsInput,
-          razao_social: razaoSocialTerm ? null : fallbackTerm,
-          nome_fantasia: razaoSocialTerm ? fallbackTerm : null,
-        });
+      console.log('CNPJ Search parallel - razao_social:', razaoParams.toString());
+      console.log('CNPJ Search parallel - nome_fantasia:', fantasiaParams.toString());
 
-        console.log('CNPJ Search fallback params:', fallbackParams.toString());
+      let razaoData = null, fantasiaData = null;
+      let razaoCount = 0, fantasiaCount = 0;
 
-        try {
-          const fallbackResponse = await doGleegoSearch(apiToken, fallbackParams);
-          if (fallbackResponse.ok) {
-            const fallbackData = await parseGleegoResponse(fallbackResponse);
-            const fallbackCount = getResultCount(fallbackData);
-            if (fallbackCount > 0) {
-              bestData = fallbackData;
-              bestCount = fallbackCount;
-              console.log('CNPJ Search fallback encontrou resultados');
-            }
-          }
-        } catch (fallbackError) {
-          console.error('Erro no fallback da busca por nome:', fallbackError.message);
+      try {
+        const [razaoRes, fantasiaRes] = await Promise.allSettled([
+          doGleegoSearch(apiToken, razaoParams),
+          doGleegoSearch(apiToken, fantasiaParams),
+        ]);
+
+        if (razaoRes.status === 'fulfilled' && razaoRes.value.ok) {
+          try { razaoData = await parseGleegoResponse(razaoRes.value); razaoCount = getResultCount(razaoData); } catch (e) {}
         }
+        if (fantasiaRes.status === 'fulfilled' && fantasiaRes.value.ok) {
+          try { fantasiaData = await parseGleegoResponse(fantasiaRes.value); fantasiaCount = getResultCount(fantasiaData); } catch (e) {}
+        }
+      } catch (err) {
+        console.error('Gleego parallel search error:', err.message);
+        return res.status(504).json({ message: 'Timeout na consulta. Tente com filtros mais específicos.' });
       }
+
+      console.log('CNPJ Search parallel results - razao:', razaoCount, 'fantasia:', fantasiaCount);
+
+      // Use whichever returned more results
+      if (fantasiaCount > razaoCount) {
+        bestData = fantasiaData;
+        bestCount = fantasiaCount;
+      } else if (razaoCount > 0) {
+        bestData = razaoData;
+        bestCount = razaoCount;
+      } else {
+        bestData = razaoData || fantasiaData || { results: [], total: 0 };
+        bestCount = 0;
+      }
+    } else {
+      // Busca direta (CNAE ou ambos os campos preenchidos)
+      const params = buildSearchParams(baseParamsInput);
+      console.log('CNPJ Search params:', params.toString());
+
+      let response;
+      try {
+        response = await doGleegoSearch(apiToken, params);
+      } catch (err) {
+        console.error('Gleego search timeout/error:', err.message);
+        return res.status(504).json({ message: 'Timeout na consulta. Tente com filtros mais específicos.' });
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Erro API CNPJ Search:', response.status, errorText);
+        return res.status(response.status).json({ message: 'Erro na pesquisa de CNPJ', details: errorText });
+      }
+
+      try {
+        bestData = await parseGleegoResponse(response);
+      } catch (err) {
+        console.error('Erro ao parsear resposta:', err);
+        return res.status(502).json({ message: 'Resposta inválida da API' });
+      }
+      bestCount = getResultCount(bestData);
     }
 
     console.log('CNPJ Search final result - type:', typeof bestData, 'count:', bestCount);
