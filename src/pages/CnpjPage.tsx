@@ -61,6 +61,7 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { SearchProgress } from '@/components/SearchProgress';
 import { Progress } from '@/components/ui/progress';
+import { CnpjDetailModal } from '@/components/CnpjDetailModal';
 import {
   Command,
   CommandEmpty,
@@ -140,6 +141,10 @@ export default function CnpjPage() {
   const [savedDateTo, setSavedDateTo] = useState<Date | undefined>(undefined);
   // Selection for saved results
   const [selectedSavedIds, setSelectedSavedIds] = useState<Set<string>>(new Set());
+
+  // Detail modal state
+  const [detailCnpj, setDetailCnpj] = useState<string | null>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
 
   // Municipality autocomplete
   const [municipios, setMunicipios] = useState<string[]>([]);
@@ -1297,13 +1302,12 @@ export default function CnpjPage() {
                             <span className="text-muted-foreground">CNPJ: </span>
                             <span
                               className="font-mono cursor-pointer text-primary"
-                              onClick={() => {
-                                if (fullCnpj.length === 14) {
-                                  setCnpj(formatCnpj(fullCnpj));
-                                  setActiveTab('lookup');
-                                  handleLookupDirect(fullCnpj);
-                                }
-                              }}
+                            onClick={() => {
+                              if (fullCnpj.length === 14) {
+                                setDetailCnpj(fullCnpj);
+                                setDetailModalOpen(true);
+                              }
+                            }}
                             >
                               {formatCnpj(fullCnpj)}
                             </span>
@@ -1380,9 +1384,8 @@ export default function CnpjPage() {
                             onClick={() => {
                               const fullCnpj = `${r.cnpj_basico || ''}${r.cnpj_ordem || ''}${r.cnpj_dv || ''}`;
                               if (fullCnpj.length === 14) {
-                                setCnpj(formatCnpj(fullCnpj));
-                                setActiveTab('lookup');
-                                handleLookupDirect(fullCnpj);
+                                setDetailCnpj(fullCnpj);
+                                setDetailModalOpen(true);
                               }
                             }}
                           >
@@ -1793,6 +1796,19 @@ export default function CnpjPage() {
           )}
         </TabsContent>
       </Tabs>
+      {/* Modal de detalhes */}
+      <CnpjDetailModal
+        cnpj={detailCnpj}
+        open={detailModalOpen}
+        onOpenChange={setDetailModalOpen}
+        onUseCnaeAsFilter={(cnae) => {
+          const code = cnae.replace(/[.\-/]/g, '').substring(0, 7);
+          setSearchFilters(f => ({ ...f, cnae: code }));
+          setActiveTab('search');
+          setDetailModalOpen(false);
+          toast({ title: 'CNAE aplicado', description: `CNAE ${code} preenchido na pesquisa avançada` });
+        }}
+      />
     </div>
   );
 
