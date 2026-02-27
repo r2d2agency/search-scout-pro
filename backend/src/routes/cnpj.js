@@ -186,8 +186,8 @@ router.post('/search', authenticate, async (req, res) => {
       limit = 20, page = 1 
     } = req.body;
 
-    const razaoSocialTerm = razao_social ? razao_social.trim() : null;
-    const nomeFantasiaTerm = nome_fantasia ? nome_fantasia.trim() : null;
+    const razaoSocialTerm = razao_social ? normalizeForSearch(razao_social) : null;
+    const nomeFantasiaTerm = nome_fantasia ? normalizeForSearch(nome_fantasia) : null;
 
     // Validação obrigatória: UF + (CNAE ou Razão Social ou Nome Fantasia). Município obrigatório apenas para CNAE.
     if (!uf) {
