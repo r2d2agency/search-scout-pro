@@ -589,10 +589,10 @@ export default function CnpjPage() {
     }
   };
 
-  const handleEnrich = useCallback(async (leads: any[], checkWhatsapp = true) => {
+  const handleEnrich = useCallback(async (leads: any[], checkWhatsapp = true): Promise<Map<string, any>> => {
     if (leads.length === 0) {
       toast({ title: 'Nenhum lead para enriquecer', variant: 'destructive' });
-      return;
+      return new Map();
     }
     setIsEnriching(true);
     setEnrichProgress({ current: 0, total: leads.length });
@@ -613,8 +613,10 @@ export default function CnpjPage() {
         title: 'Enriquecimento concluído!',
         description: `${enrichedCount} encontrados no Google · ${withPhone} com telefone · ${withWhatsapp} com WhatsApp`,
       });
+      return allResults;
     } catch (error: any) {
       toast({ title: 'Erro no enriquecimento', description: error.message, variant: 'destructive' });
+      return enrichResults;
     } finally {
       setIsEnriching(false);
     }
@@ -627,11 +629,38 @@ export default function CnpjPage() {
     handleEnrich(toEnrich);
   };
 
-  const handleEnrichSaved = () => {
+  const handleEnrichSaved = async () => {
     const toEnrich = selectedSavedIds.size > 0
       ? filteredSavedResults.filter((r: any, i: number) => selectedSavedIds.has(getResultKey(r, i)))
       : filteredSavedResults;
-    handleEnrich(toEnrich);
+    const finalEnrichMap = await handleEnrich(toEnrich);
+    // Persist enriched data back to saved query
+    if (viewingSaved && finalEnrichMap.size > 0) {
+      try {
+        const updatedLeads = viewingSaved.leads.map((lead: any) => {
+          const cnpjKey = `${lead.cnpj_basico || ''}${lead.cnpj_ordem || ''}${lead.cnpj_dv || ''}`;
+          const ed = finalEnrichMap.get(cnpjKey);
+          if (ed) {
+            return {
+              ...lead,
+              googleName: ed.googleName || lead.googleName,
+              enrich_google_name: ed.googleName || lead.enrich_google_name,
+              enrich_phone: ed.phoneFormatted || ed.phone || lead.enrich_phone,
+              phoneFormatted: ed.phoneFormatted || lead.phoneFormatted,
+              enrich_whatsapp_valid: ed.whatsappValid ?? lead.enrich_whatsapp_valid,
+              whatsappValid: ed.whatsappValid ?? lead.whatsappValid,
+              enriched: true,
+            };
+          }
+          return lead;
+        });
+        await savedSearchesApi.update(viewingSaved.id, { leads: updatedLeads });
+        setViewingSaved({ ...viewingSaved, leads: updatedLeads });
+        toast({ title: 'Dados enriquecidos salvos!' });
+      } catch (error: any) {
+        toast({ title: 'Erro ao salvar enriquecimento', description: error.message, variant: 'destructive' });
+      }
+    }
   };
 
   const getEnrichData = (r: any) => {
