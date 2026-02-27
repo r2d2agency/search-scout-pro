@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Building2, MapPin, Users, Phone, Loader2, Search } from 'lucide-react';
+import { Building2, MapPin, Users, Phone, Loader2, Search, MessageCircle, Globe } from 'lucide-react';
 import { cnpjApi } from '@/lib/apiClient';
 import { toast } from '@/hooks/use-toast';
 
@@ -27,6 +27,8 @@ interface CnpjDetailModalProps {
   onUseCnaeAsFilter?: (cnae: string) => void;
   /** Pre-loaded data from search results to avoid re-fetching */
   preloadedData?: any;
+  /** Enrichment data for this lead */
+  enrichData?: any;
 }
 
 function formatDateDisplay(dateStr: string) {
@@ -44,7 +46,7 @@ function InfoRow({ label, value }: { label: string; value: string | null | undef
   );
 }
 
-export function CnpjDetailModal({ cnpj, open, onOpenChange, onUseCnaeAsFilter, preloadedData }: CnpjDetailModalProps) {
+export function CnpjDetailModal({ cnpj, open, onOpenChange, onUseCnaeAsFilter, preloadedData, enrichData }: CnpjDetailModalProps) {
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -173,6 +175,36 @@ export function CnpjDetailModal({ cnpj, open, onOpenChange, onUseCnaeAsFilter, p
                   </div>
                 </div>
               </div>
+
+              {/* Dados Enriquecidos */}
+              {(enrichData || preloadedData?.googleName || preloadedData?.enrich_google_name) && (() => {
+                const ed = enrichData || preloadedData || {};
+                const gName = ed.googleName || ed.enrich_google_name;
+                const gPhone = ed.phoneFormatted || ed.enrich_phone;
+                const gWhatsapp = ed.whatsappValid ?? ed.enrich_whatsapp_valid;
+                const hasAny = gName || gPhone || gWhatsapp !== undefined;
+                if (!hasAny) return null;
+                return (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <h3 className="font-semibold text-sm flex items-center gap-1"><Globe className="h-4 w-4" /> Dados Enriquecidos</h3>
+                      <div className="space-y-1 p-3 rounded-lg bg-muted/50">
+                        <InfoRow label="Nome Google" value={gName} />
+                        <InfoRow label="Telefone Google" value={gPhone} />
+                        {gWhatsapp !== undefined && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">WhatsApp</span>
+                            <Badge variant={gWhatsapp ? 'default' : 'secondary'} className={gWhatsapp ? 'bg-green-600 text-xs' : 'text-xs'}>
+                              <MessageCircle className="h-3 w-3 mr-1" />{gWhatsapp ? 'Sim' : 'Não'}
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
 
               {/* CNAE */}
               {cnaePrincipal && (
