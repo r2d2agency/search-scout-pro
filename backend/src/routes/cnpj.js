@@ -166,77 +166,35 @@ router.post('/search', authenticate, async (req, res) => {
       return res.status(400).json({ message: 'Token da API CNPJ não configurado. Solicite ao administrador.' });
     }
 
-    // Tentar diferentes formatos de CNAE até achar resultados
-    const cnaeVariants = cnae ? formatCnaeVariants(cnae) : [null];
-    // Município: tentar original e UPPERCASE (Gleego pode exigir maiúscula)
-    const municipioVariants = [municipio, municipio.toUpperCase()];
-    // Remove duplicates
-    const uniqueMunVariants = [...new Set(municipioVariants)];
+    // Normalizar CNAE: enviar apenas os 7 dígitos puros
+    const cleanCnae = cnae ? cnae.replace(/\D/g, '') : null;
+    // Município sempre UPPERCASE (padrão Receita Federal)
+    const cleanMunicipio = municipio.toUpperCase().trim();
 
-    let bestData = null;
-    let bestCount = 0;
+    const params = new URLSearchParams();
+    if (razao_social) params.append('razao_social', razao_social);
+    if (cleanCnae) params.append('cnae', cleanCnae);
+    params.append('municipio', cleanMunicipio);
+    params.append('uf', uf.toUpperCase());
+    if (situacao) params.append('situacao', situacao);
+    if (data_abertura_gte) params.append('data_abertura_gte', data_abertura_gte);
+    if (data_abertura_lte) params.append('data_abertura_lte', data_abertura_lte);
+    params.append('limit', Math.min(limit, 100).toString());
+    params.append('page', page.toString());
 
-    for (const munVariant of uniqueMunVariants) {
-      for (const cnaeVariant of cnaeVariants) {
-        const params = new URLSearchParams();
-        if (razao_social) params.append('razao_social', razao_social);
-        if (cnaeVariant) params.append('cnae', cnaeVariant);
-        if (munVariant) params.append('municipio', munVariant);
-        if (uf) params.append('uf', uf);
-        if (situacao) params.append('situacao', situacao);
-        if (data_abertura_gte) params.append('data_abertura_gte', data_abertura_gte);
-        if (data_abertura_lte) params.append('data_abertura_lte', data_abertura_lte);
-        params.append('limit', Math.min(limit, 100).toString());
-        params.append('page', page.toString());
+    console.log('CNPJ Search params:', params.toString());
 
-        console.log(`Trying CNAE="${cnaeVariant}" municipio="${munVariant}"`);
-
-        const response = await doGleegoSearch(apiToken, params);
-        if (!response.ok) {
-          console.log(`  -> HTTP ${response.status}`);
-          continue;
-        }
-
-        const data = await parseGleegoResponse(response);
-        const count = getResultCount(data);
-        console.log(`  -> ${count} results`);
-
-        if (count > bestCount) {
-          bestData = data;
-          bestCount = count;
-        }
-
-        // Se achou resultados, não precisa tentar mais variantes
-        if (count > 0) break;
-      }
-      if (bestCount > 0) break;
+    const response = await doGleegoSearch(apiToken, params);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Erro API CNPJ Search:', response.status, errorText);
+      return res.status(response.status).json({ 
+        message: 'Erro na pesquisa de CNPJ',
+        details: errorText
+      });
     }
 
-    // Se nenhuma variante funcionou, usar a última resposta ou retornar vazio
-    if (!bestData) {
-      // Fazer uma última tentativa sem CNAE formatado e logar a URL completa
-      const params = new URLSearchParams();
-      if (razao_social) params.append('razao_social', razao_social);
-      if (cnae) params.append('cnae', cnae);
-      if (municipio) params.append('municipio', municipio);
-      if (uf) params.append('uf', uf);
-      if (situacao) params.append('situacao', situacao);
-      if (data_abertura_gte) params.append('data_abertura_gte', data_abertura_gte);
-      if (data_abertura_lte) params.append('data_abertura_lte', data_abertura_lte);
-      params.append('limit', Math.min(limit, 100).toString());
-      params.append('page', page.toString());
-
-      const response = await doGleegoSearch(apiToken, params);
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Erro API CNPJ Search:', response.status, errorText);
-        return res.status(response.status).json({ 
-          message: 'Erro na pesquisa de CNPJ',
-          details: errorText
-        });
-      }
-      bestData = await parseGleegoResponse(response);
-    }
+    let bestData = await parseGleegoResponse(response);
     
     // Log response structure
     console.log('CNPJ Search final result - type:', typeof bestData, 'count:', getResultCount(bestData));
