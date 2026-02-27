@@ -114,12 +114,13 @@ export function CnpjDetailModal({ cnpj, open, onOpenChange, onUseCnaeAsFilter, p
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] p-0">
+      <DialogContent className="max-w-3xl max-h-[90vh] p-0" aria-describedby="cnpj-detail-desc">
         <DialogHeader className="p-6 pb-0">
           <DialogTitle className="flex items-center gap-2">
             <Building2 className="h-5 w-5" />
             {isLoading ? 'Carregando...' : (razaoSocial || 'Detalhes da Empresa')}
           </DialogTitle>
+          <p id="cnpj-detail-desc" className="sr-only">Detalhes completos da empresa</p>
         </DialogHeader>
 
         <ScrollArea className="max-h-[75vh] px-6 pb-6">
