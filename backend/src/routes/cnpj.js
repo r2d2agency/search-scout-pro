@@ -213,15 +213,15 @@ router.post('/search', authenticate, async (req, res) => {
       uf, situacao, data_abertura_gte, data_abertura_lte, limit, page,
     };
 
-    // Se pesquisa por nome (sem CNAE) e apenas um campo preenchido, buscar ambos em paralelo
+    // Se ambos razao_social e nome_fantasia foram enviados com o mesmo valor, buscar em paralelo
     const nameTerm = razaoSocialTerm || nomeFantasiaTerm;
-    const isNameOnlySearch = !cnae && nameTerm && !(razaoSocialTerm && nomeFantasiaTerm);
+    const isBothNameSearch = !cnae && razaoSocialTerm && nomeFantasiaTerm && razaoSocialTerm === nomeFantasiaTerm;
 
     let bestData;
     let bestCount = 0;
 
-    if (isNameOnlySearch) {
-      // Buscar por razao_social E nome_fantasia em paralelo
+    if (isBothNameSearch) {
+      // Buscar por razao_social E nome_fantasia em paralelo, retornar o com mais resultados
       const razaoParams = buildSearchParams({ ...baseParamsInput, razao_social: nameTerm, nome_fantasia: null });
       const fantasiaParams = buildSearchParams({ ...baseParamsInput, razao_social: null, nome_fantasia: nameTerm });
 
@@ -250,7 +250,6 @@ router.post('/search', authenticate, async (req, res) => {
 
       console.log('CNPJ Search parallel results - razao:', razaoCount, 'fantasia:', fantasiaCount);
 
-      // Use whichever returned more results
       if (fantasiaCount > razaoCount) {
         bestData = fantasiaData;
         bestCount = fantasiaCount;
