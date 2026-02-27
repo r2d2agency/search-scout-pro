@@ -393,7 +393,7 @@ export default function CnpjPage() {
     setIsNameSearchLoading(true);
     try {
       const nameTerm = nameSearchFilters.razao_social.trim();
-      const params: any = { razao_social: nameTerm, uf: nameSearchFilters.uf, page, limit: MAX_RESULTS };
+      const params: any = { razao_social: nameTerm, nome_fantasia: nameTerm, uf: nameSearchFilters.uf, page, limit: MAX_RESULTS };
       if (nameSearchFilters.municipio.trim()) params.municipio = nameSearchFilters.municipio;
       if (nameSearchFilters.situacao) params.situacao = nameSearchFilters.situacao;
       console.log('CNPJ name search sending params:', JSON.stringify(params));
