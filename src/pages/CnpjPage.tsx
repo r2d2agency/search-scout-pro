@@ -259,7 +259,7 @@ export default function CnpjPage() {
   // Validation for name search - only UF is required
   const nameValidationError = useMemo(() => {
     if (!nameSearchFilters.uf) return 'Selecione o Estado (UF) — campo obrigatório';
-    if (!nameSearchFilters.razao_social.trim()) return 'Informe a Razão Social — campo obrigatório';
+    if (!nameSearchFilters.razao_social.trim()) return 'Informe Razão Social ou Nome Fantasia — campo obrigatório';
     return null;
   }, [nameSearchFilters.uf, nameSearchFilters.razao_social]);
 
@@ -392,7 +392,8 @@ export default function CnpjPage() {
     }
     setIsNameSearchLoading(true);
     try {
-      const params: any = { razao_social: nameSearchFilters.razao_social, uf: nameSearchFilters.uf, page, limit: MAX_RESULTS };
+      const nameTerm = nameSearchFilters.razao_social.trim();
+      const params: any = { razao_social: nameTerm, uf: nameSearchFilters.uf, page, limit: MAX_RESULTS };
       if (nameSearchFilters.municipio.trim()) params.municipio = nameSearchFilters.municipio;
       if (nameSearchFilters.situacao) params.situacao = nameSearchFilters.situacao;
       console.log('CNPJ name search sending params:', JSON.stringify(params));
@@ -461,7 +462,7 @@ export default function CnpjPage() {
   };
 
   const handleSaveNameSearch = async () => {
-    const desc = JSON.stringify({ razao_social: nameSearchFilters.razao_social, uf: nameSearchFilters.uf, municipio: nameSearchFilters.municipio });
+    const desc = JSON.stringify({ termo_nome: nameSearchFilters.razao_social, uf: nameSearchFilters.uf, municipio: nameSearchFilters.municipio });
     const ok = await handleSaveQuery(nameResults, selectedNameIds, namesSaveName, desc);
     if (ok) { setNamesSaveName(''); setShowNameSaveDialog(false); }
   };
@@ -702,7 +703,9 @@ export default function CnpjPage() {
     try {
       const json = query.replace('cnpj:', '');
       const parsed = JSON.parse(json);
+      if (parsed.termo_nome) return `Nome: ${parsed.termo_nome}`;
       if (parsed.razao_social) return `Nome: ${parsed.razao_social}`;
+      if (parsed.nome_fantasia) return `Nome Fantasia: ${parsed.nome_fantasia}`;
       if (parsed.cnae) return `CNAE: ${parsed.cnae} · ${parsed.uf} · ${parsed.municipio}`;
       return parsed.municipio ? `${parsed.uf} · ${parsed.municipio}` : '';
     } catch { return ''; }
@@ -1331,17 +1334,17 @@ export default function CnpjPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Type className="h-5 w-5" />
-                Pesquisa por Razão Social
+                Pesquisa por Razão Social ou Nome Fantasia
               </CardTitle>
               <CardDescription>
-                Busque todas as empresas que contêm ou começam com o nome informado.
+                Busque empresas pelo termo informado, testando Razão Social e Nome Fantasia automaticamente.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-2 sm:col-span-2">
-                  <Label>Razão Social <span className="text-destructive">*</span></Label>
-                  <Input placeholder="Nome da empresa..." value={nameSearchFilters.razao_social}
+                  <Label>Razão Social ou Nome Fantasia <span className="text-destructive">*</span></Label>
+                  <Input placeholder="Ex: Mercado Central" value={nameSearchFilters.razao_social}
                     onChange={(e) => setNameSearchFilters(f => ({ ...f, razao_social: e.target.value }))}
                     onKeyDown={(e) => e.key === 'Enter' && handleNameSearch(1, true)}
                     className="h-11" />

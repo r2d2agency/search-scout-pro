@@ -162,9 +162,10 @@ function normalizeForSearch(value) {
     .toUpperCase();
 }
 
-function buildSearchParams({ razao_social, cnae, municipio, uf, situacao, data_abertura_gte, data_abertura_lte, limit, page }) {
+function buildSearchParams({ razao_social, nome_fantasia, cnae, municipio, uf, situacao, data_abertura_gte, data_abertura_lte, limit, page }) {
   const params = new URLSearchParams();
   if (razao_social) params.append('razao_social', razao_social);
+  if (nome_fantasia) params.append('nome_fantasia', nome_fantasia);
   if (cnae) params.append('cnae', cnae);
   if (municipio) params.append('municipio', municipio);
   params.append('uf', uf.toUpperCase());
@@ -180,20 +181,23 @@ function buildSearchParams({ razao_social, cnae, municipio, uf, situacao, data_a
 router.post('/search', authenticate, async (req, res) => {
   try {
     const { 
-      razao_social, cnae, municipio, uf, situacao,
+      razao_social, nome_fantasia, cnae, municipio, uf, situacao,
       data_abertura_gte, data_abertura_lte,
       limit = 20, page = 1 
     } = req.body;
 
-    // Validação obrigatória: UF + (CNAE ou Razão Social). Município obrigatório apenas para CNAE.
+    const razaoSocialTerm = razao_social ? razao_social.trim() : null;
+    const nomeFantasiaTerm = nome_fantasia ? nome_fantasia.trim() : null;
+
+    // Validação obrigatória: UF + (CNAE ou Razão Social ou Nome Fantasia). Município obrigatório apenas para CNAE.
     if (!uf) {
       return res.status(400).json({ message: 'UF é obrigatório' });
     }
     if (cnae && !municipio) {
       return res.status(400).json({ message: 'Município é obrigatório para pesquisa por CNAE' });
     }
-    if (!cnae && !razao_social) {
-      return res.status(400).json({ message: 'Informe pelo menos CNAE ou Razão Social' });
+    if (!cnae && !razaoSocialTerm && !nomeFantasiaTerm) {
+      return res.status(400).json({ message: 'Informe pelo menos CNAE, Razão Social ou Nome Fantasia' });
     }
 
     const apiToken = await getCnpjApiToken();
@@ -201,13 +205,16 @@ router.post('/search', authenticate, async (req, res) => {
       return res.status(400).json({ message: 'Token da API CNPJ não configurado. Solicite ao administrador.' });
     }
 
-    // Chamada direta sem loop de variantes (evita timeout 504/502)
-    const params = buildSearchParams({
-      razao_social: razao_social ? razao_social.trim() : null,
+    const baseParamsInput = {
+      razao_social: razaoSocialTerm,
+      nome_fantasia: nomeFantasiaTerm,
       cnae: cnae ? cnae.replace(/\D/g, '') : null,
       municipio: municipio ? normalizeForSearch(municipio) : null,
       uf, situacao, data_abertura_gte, data_abertura_lte, limit, page,
-    });
+    };
+
+    // Chamada direta sem loop grande de variantes (evita timeout 504/502)
+    const params = buildSearchParams(baseParamsInput);
 
     console.log('CNPJ Search params:', params.toString());
 
@@ -233,7 +240,38 @@ router.post('/search', authenticate, async (req, res) => {
       return res.status(502).json({ message: 'Resposta inválida da API' });
     }
 
-    console.log('CNPJ Search final result - type:', typeof bestData, 'count:', getResultCount(bestData));
+    let bestCount = getResultCount(bestData);
+
+    // Busca por nome com fallback: se não achar por Razão Social, tenta Nome Fantasia (e vice-versa)
+    if (bestCount === 0 && !cnae) {
+      const fallbackTerm = razaoSocialTerm || nomeFantasiaTerm;
+      if (fallbackTerm && !(razaoSocialTerm && nomeFantasiaTerm)) {
+        const fallbackParams = buildSearchParams({
+          ...baseParamsInput,
+          razao_social: razaoSocialTerm ? null : fallbackTerm,
+          nome_fantasia: razaoSocialTerm ? fallbackTerm : null,
+        });
+
+        console.log('CNPJ Search fallback params:', fallbackParams.toString());
+
+        try {
+          const fallbackResponse = await doGleegoSearch(apiToken, fallbackParams);
+          if (fallbackResponse.ok) {
+            const fallbackData = await parseGleegoResponse(fallbackResponse);
+            const fallbackCount = getResultCount(fallbackData);
+            if (fallbackCount > 0) {
+              bestData = fallbackData;
+              bestCount = fallbackCount;
+              console.log('CNPJ Search fallback encontrou resultados');
+            }
+          }
+        } catch (fallbackError) {
+          console.error('Erro no fallback da busca por nome:', fallbackError.message);
+        }
+      }
+    }
+
+    console.log('CNPJ Search final result - type:', typeof bestData, 'count:', bestCount);
 
     // Normalize: if the API returns a raw array, wrap it
     if (Array.isArray(bestData)) {
