@@ -235,15 +235,16 @@ export default function CnpjPage() {
   // Open detail modal with preloaded row data (instant)
   const [detailEnrichData, setDetailEnrichData] = useState<any>(null);
   const openDetailModal = (row: any) => {
-    const fullCnpj = `${row.cnpj_basico || ''}${row.cnpj_ordem || ''}${row.cnpj_dv || ''}`;
-    if (fullCnpj.length === 14) {
-      setDetailCnpj(fullCnpj);
-      setDetailPreloadedData(row);
-      // Check enrichment data from Map or from saved lead fields
-      const ed = enrichResults.get(fullCnpj) || (row.googleName || row.enrich_google_name ? row : null);
-      setDetailEnrichData(ed);
-      setDetailModalOpen(true);
+    const fullCnpj = `${row.cnpj_basico || ''}${row.cnpj_ordem || ''}${row.cnpj_dv || ''}`.replace(/\D/g, '');
+    if (!fullCnpj || fullCnpj.length < 11) {
+      console.warn('openDetailModal: CNPJ inválido', fullCnpj, row);
+      return;
     }
+    setDetailCnpj(fullCnpj);
+    setDetailPreloadedData(row);
+    const ed = enrichResults.get(fullCnpj) || (row.googleName || row.enrich_google_name ? row : null);
+    setDetailEnrichData(ed);
+    setDetailModalOpen(true);
   };
 
   // Validation for CNAE search
