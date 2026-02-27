@@ -153,9 +153,12 @@ router.post('/search', authenticate, async (req, res) => {
       limit = 20, page = 1 
     } = req.body;
 
-    // Validação obrigatória: UF + Município + (CNAE ou Razão Social)
-    if (!uf || !municipio) {
-      return res.status(400).json({ message: 'UF e Município são obrigatórios' });
+    // Validação obrigatória: UF + (CNAE ou Razão Social). Município obrigatório apenas para CNAE.
+    if (!uf) {
+      return res.status(400).json({ message: 'UF é obrigatório' });
+    }
+    if (cnae && !municipio) {
+      return res.status(400).json({ message: 'Município é obrigatório para pesquisa por CNAE' });
     }
     if (!cnae && !razao_social) {
       return res.status(400).json({ message: 'Informe pelo menos CNAE ou Razão Social' });
@@ -169,12 +172,12 @@ router.post('/search', authenticate, async (req, res) => {
     // Normalizar CNAE: enviar apenas os 7 dígitos puros
     const cleanCnae = cnae ? cnae.replace(/\D/g, '') : null;
     // Município sempre UPPERCASE (padrão Receita Federal)
-    const cleanMunicipio = municipio.toUpperCase().trim();
+    const cleanMunicipio = municipio ? municipio.toUpperCase().trim() : null;
 
     const params = new URLSearchParams();
     if (razao_social) params.append('razao_social', razao_social);
     if (cleanCnae) params.append('cnae', cleanCnae);
-    params.append('municipio', cleanMunicipio);
+    if (cleanMunicipio) params.append('municipio', cleanMunicipio);
     params.append('uf', uf.toUpperCase());
     if (situacao) params.append('situacao', situacao);
     if (data_abertura_gte) params.append('data_abertura_gte', data_abertura_gte);

@@ -249,13 +249,12 @@ export default function CnpjPage() {
     return null;
   }, [searchFilters.uf, searchFilters.municipio, searchFilters.cnae]);
 
-  // Validation for name search
+  // Validation for name search - only UF is required
   const nameValidationError = useMemo(() => {
     if (!nameSearchFilters.uf) return 'Selecione o Estado (UF) — campo obrigatório';
-    if (!nameSearchFilters.municipio.trim()) return 'Informe o Município — campo obrigatório';
     if (!nameSearchFilters.razao_social.trim()) return 'Informe a Razão Social — campo obrigatório';
     return null;
-  }, [nameSearchFilters.uf, nameSearchFilters.municipio, nameSearchFilters.razao_social]);
+  }, [nameSearchFilters.uf, nameSearchFilters.razao_social]);
 
   const dateRangeError = useMemo(() => {
     if (dateFrom && dateTo) {
@@ -371,7 +370,8 @@ export default function CnpjPage() {
     }
     setIsNameSearchLoading(true);
     try {
-      const params: any = { razao_social: nameSearchFilters.razao_social, municipio: nameSearchFilters.municipio, uf: nameSearchFilters.uf, page, limit: MAX_RESULTS };
+      const params: any = { razao_social: nameSearchFilters.razao_social, uf: nameSearchFilters.uf, page, limit: MAX_RESULTS };
+      if (nameSearchFilters.municipio.trim()) params.municipio = nameSearchFilters.municipio;
       if (nameSearchFilters.situacao) params.situacao = nameSearchFilters.situacao;
       console.log('CNPJ name search sending params:', JSON.stringify(params));
       const data = await cnpjApi.search(params);
@@ -1291,7 +1291,7 @@ export default function CnpjPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Município <span className="text-destructive">*</span></Label>
+                  <Label>Município <span className="text-muted-foreground text-xs">(opcional)</span></Label>
                   <Popover open={nameMunicipioOpen} onOpenChange={setNameMunicipioOpen}>
                     <PopoverTrigger asChild>
                       <Button variant="outline" role="combobox"
