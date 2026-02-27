@@ -55,27 +55,28 @@ export function CnpjDetailModal({ cnpj, open, onOpenChange, onUseCnaeAsFilter, p
     }
   };
 
-  // Use preloaded data or fetch from API
+  // Always fetch full data via lookup to get sócios, use preloaded for instant display
   useEffect(() => {
     if (!open || !cnpj) return;
     
+    // Show preloaded data immediately while fetching full details
     if (preloadedData) {
       setData(preloadedData);
-      setIsLoading(false);
-      return;
     }
 
-    // Only fetch if no preloaded data
+    // Always do lookup to get complete data (including sócios)
     setIsLoading(true);
-    setData(null);
     cnpjApi.lookup(cnpj)
       .then(result => setData(result))
       .catch((error: any) => {
-        toast({ title: 'Erro na consulta', description: error.message, variant: 'destructive' });
-        handleOpenChange(false);
+        // If lookup fails but we have preloaded data, keep showing it
+        if (!preloadedData) {
+          toast({ title: 'Erro na consulta', description: error.message, variant: 'destructive' });
+          handleOpenChange(false);
+        }
       })
       .finally(() => setIsLoading(false));
-  }, [open, cnpj, preloadedData]);
+  }, [open, cnpj]);
 
   const emp = data?.empresa || data || {};
   const est = data?.estabelecimento || data || {};
