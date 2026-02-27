@@ -113,6 +113,7 @@ export default function CnpjPage() {
     municipio: '',
     uf: '',
     situacao: '',
+    enquadramento: '',
   });
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
@@ -331,14 +332,26 @@ export default function CnpjPage() {
     setIsSearchLoading(true);
     setTimeout(() => progressRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     try {
-      const params: any = { ...searchFilters, page, limit: MAX_RESULTS };
+      const { enquadramento, ...apiFilters } = searchFilters;
+      const params: any = { ...apiFilters, page, limit: MAX_RESULTS };
       if (dateFrom && dateTo) {
         params.data_abertura_gte = toApiDate(dateFrom);
         params.data_abertura_lte = toApiDate(dateTo);
       }
       console.log('CNPJ search sending params:', JSON.stringify(params));
       const data = await cnpjApi.search(params);
-      const results = extractResults(data);
+      let results = extractResults(data);
+      // Client-side enquadramento filter
+      if (enquadramento) {
+        results = results.filter((r: any) => {
+          const simplesOpcao = (r.opcao_simples || r.opcao_pelo_simples || '').toString().toLowerCase();
+          const isMei = (r.opcao_mei || r.opcao_pelo_mei || '').toString().toLowerCase();
+          if (enquadramento === 'simples') return simplesOpcao === 's' || simplesOpcao === 'sim' || simplesOpcao === 'true';
+          if (enquadramento === 'mei') return isMei === 's' || isMei === 'sim' || isMei === 'true';
+          if (enquadramento === 'normal') return (simplesOpcao !== 's' && simplesOpcao !== 'sim' && simplesOpcao !== 'true') && (isMei !== 's' && isMei !== 'sim' && isMei !== 'true');
+          return true;
+        });
+      }
       const newResults = results.slice(0, MAX_RESULTS);
       const total = data?.total || data?.count || data?.total_count || data?.totalResults || data?.pagination?.total || results.length;
       setTotalResults(total);
@@ -1094,6 +1107,18 @@ export default function CnpjPage() {
                         <SelectItem value="03">Suspensa</SelectItem>
                         <SelectItem value="04">Inapta</SelectItem>
                         <SelectItem value="08">Baixada</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Enquadramento</Label>
+                    <Select value={searchFilters.enquadramento || 'all'} onValueChange={(v) => setSearchFilters(f => ({ ...f, enquadramento: v === 'all' ? '' : v }))}>
+                      <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="simples">Simples Nacional</SelectItem>
+                        <SelectItem value="mei">MEI</SelectItem>
+                        <SelectItem value="normal">Lucro Presumido / Real</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
