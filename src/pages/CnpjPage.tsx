@@ -544,7 +544,7 @@ export default function CnpjPage() {
         ).join('; ') : (r.socios || '');
         const tel1 = r.ddd_telefone_1 ? `(${r.ddd_telefone_1})` : '';
         const cnpjKey = `${r.cnpj_basico || ''}${r.cnpj_ordem || ''}${r.cnpj_dv || ''}`;
-        const ed = enrichResults.get(cnpjKey);
+        const ed = getEnrichData(r);
         return {
           'CNPJ': formatCnpj(cnpjKey),
           'Razão Social': r.razao_social || '',
@@ -554,8 +554,8 @@ export default function CnpjPage() {
           'Capital Social': r.capital_social ? `R$ ${Number(r.capital_social).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '',
           'Natureza Jurídica': r.natureza_juridica_descricao || r.natureza_juridica || '',
           'Porte': r.porte_empresa_descricao || r.porte || '',
-          'CNAE Principal': r.cnae_fiscal_principal || '',
-          'CNAE Descrição': r.cnae_fiscal_principal_descricao || '',
+          'CNAE Principal': r.cnae_fiscal_principal || r.cnae_principal || '',
+          'CNAE Descrição': r.cnae_fiscal_principal_descricao || r.cnae_descricao || '',
           'Logradouro': [r.tipo_logradouro, r.logradouro].filter(Boolean).join(' ') || '',
           'Número': r.numero || '',
           'Bairro': r.bairro || '',
@@ -568,9 +568,11 @@ export default function CnpjPage() {
           'Simples Nacional': r.opcao_pelo_simples === true || r.opcao_pelo_simples === 'S' ? 'Sim' : 'Não',
           'MEI': r.opcao_pelo_mei === true || r.opcao_pelo_mei === 'S' ? 'Sim' : 'Não',
           'Google - Nome': ed?.googleName || '',
-          'Google - Telefone': ed?.phoneFormatted || '',
+          'Google - Telefone': ed?.phoneFormatted || ed?.phone || '',
           'Google - WhatsApp': ed?.whatsappValid === true ? 'Sim' : ed?.whatsappValid === false ? 'Não' : '',
           'Google - Website': ed?.website || '',
+          'Google - Rating': ed?.rating || '',
+          'Google - Categoria': ed?.category || '',
         };
       });
       const ws = XLSX.utils.json_to_sheet(data);
@@ -911,25 +913,25 @@ export default function CnpjPage() {
     toggleSelection: (key: string) => void, 
     toggleAll: () => void
   ) => (
-    <div className="overflow-x-auto"><Table>
+    <div className="overflow-x-auto"><Table className="text-xs">
       <TableHeader>
         <TableRow>
-          <TableHead className="w-[40px]">
+          <TableHead className="w-[30px] px-2">
             <Checkbox checked={selectedIds.size === results.length && results.length > 0} onCheckedChange={toggleAll} />
           </TableHead>
-          <TableHead>CNPJ</TableHead>
-          <TableHead>Razão Social</TableHead>
-          <TableHead>Nome Fantasia</TableHead>
-          <TableHead>UF</TableHead>
-          <TableHead>Município</TableHead>
-          <TableHead>Telefone</TableHead>
-          <TableHead>Abertura</TableHead>
-          <TableHead>Situação</TableHead>
+          <TableHead className="px-2 whitespace-nowrap">CNPJ</TableHead>
+          <TableHead className="px-2 max-w-[160px]">Razão Social</TableHead>
+          <TableHead className="px-2 max-w-[120px]">Nome Fantasia</TableHead>
+          <TableHead className="px-1">UF</TableHead>
+          <TableHead className="px-2 max-w-[100px]">Município</TableHead>
+          <TableHead className="px-2">Tel</TableHead>
+          <TableHead className="px-2">Abertura</TableHead>
+          <TableHead className="px-2">Situação</TableHead>
           {hasAnyEnrichData(results) && (
             <>
-              <TableHead>Google Nome</TableHead>
-              <TableHead>Google Tel</TableHead>
-              <TableHead>WhatsApp</TableHead>
+              <TableHead className="px-2 max-w-[120px]">Google Nome</TableHead>
+              <TableHead className="px-2">Google Tel</TableHead>
+              <TableHead className="px-1">WhatsApp</TableHead>
             </>
           )}
         </TableRow>
@@ -939,49 +941,49 @@ export default function CnpjPage() {
           const key = getResultKey(r, i);
           const ed = getEnrichData(r);
           return (
-            <TableRow key={key} className={cn(selectedIds.has(key) && 'bg-primary/5')}>
-              <TableCell>
+            <TableRow key={key} className={cn("h-8", selectedIds.has(key) && 'bg-primary/5')}>
+              <TableCell className="px-2 py-1">
                 <Checkbox checked={selectedIds.has(key)} onCheckedChange={() => toggleSelection(key)} />
               </TableCell>
               <TableCell 
-                className="font-mono text-sm cursor-pointer hover:text-primary"
+                className="font-mono px-2 py-1 cursor-pointer hover:text-primary whitespace-nowrap"
                 onClick={() => openDetailModal(r)}
               >
                 {formatCnpj(`${r.cnpj_basico || ''}${r.cnpj_ordem || ''}${r.cnpj_dv || ''}`)}
               </TableCell>
-              <TableCell className="font-medium max-w-[200px] truncate">{r.razao_social}</TableCell>
-              <TableCell className="max-w-[150px] truncate">{r.nome_fantasia || '-'}</TableCell>
-              <TableCell>{r.uf}</TableCell>
-              <TableCell>{r.municipio_nome || r.municipio || '-'}</TableCell>
-              <TableCell>
+              <TableCell className="font-medium max-w-[160px] truncate px-2 py-1">{r.razao_social}</TableCell>
+              <TableCell className="max-w-[120px] truncate px-2 py-1">{r.nome_fantasia || '-'}</TableCell>
+              <TableCell className="px-1 py-1">{r.uf}</TableCell>
+              <TableCell className="max-w-[100px] truncate px-2 py-1">{r.municipio_nome || r.municipio || '-'}</TableCell>
+              <TableCell className="px-2 py-1">
                 {r.ddd_telefone_1 ? (
-                  <span className="flex items-center gap-1 text-sm">
-                    <Phone className="h-3 w-3 text-muted-foreground" />({r.ddd_telefone_1})
+                  <span className="flex items-center gap-0.5">
+                    <Phone className="h-2.5 w-2.5 text-muted-foreground" />({r.ddd_telefone_1})
                   </span>
-                ) : <span className="text-muted-foreground text-xs">-</span>}
+                ) : <span className="text-muted-foreground">-</span>}
               </TableCell>
-              <TableCell className="whitespace-nowrap text-sm">
+              <TableCell className="whitespace-nowrap px-2 py-1">
                 {r.data_inicio_atividade ? formatDateDisplay(r.data_inicio_atividade) : '-'}
               </TableCell>
-              <TableCell>
-                <Badge variant={r.situacao_cadastral === '02' ? 'default' : 'secondary'} className="text-xs">
+              <TableCell className="px-2 py-1">
+                <Badge variant={r.situacao_cadastral === '02' ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0">
                   {r.situacao_cadastral === '02' ? 'Ativa' : r.situacao_cadastral}
                 </Badge>
               </TableCell>
               {hasAnyEnrichData(results) && (() => {
                 return (
                   <>
-                    <TableCell className="max-w-[150px] truncate text-sm">
-                      {ed?.skipped ? <span className="text-muted-foreground text-xs italic">Sem nome fantasia</span> 
+                    <TableCell className="max-w-[120px] truncate px-2 py-1">
+                      {ed?.skipped ? <span className="text-muted-foreground italic">—</span> 
                         : ed?.googleName ? <span className="text-primary">{ed.googleName}</span> 
-                        : ed ? <span className="text-muted-foreground text-xs">Não encontrado</span> : '-'}
+                        : ed ? <span className="text-muted-foreground">—</span> : '-'}
                     </TableCell>
-                    <TableCell className="text-sm">{ed?.skipped ? '-' : ed?.phoneFormatted || '-'}</TableCell>
-                    <TableCell>
+                    <TableCell className="px-2 py-1 whitespace-nowrap">{ed?.skipped ? '-' : ed?.phoneFormatted || '-'}</TableCell>
+                    <TableCell className="px-1 py-1">
                       {ed?.skipped ? '-' : ed?.whatsappValid === true ? (
-                        <Badge variant="default" className="text-xs bg-green-600"><MessageCircle className="h-3 w-3 mr-1" />Sim</Badge>
+                        <Badge variant="default" className="text-[10px] px-1 py-0 bg-green-600"><MessageCircle className="h-2.5 w-2.5 mr-0.5" />Sim</Badge>
                       ) : ed?.whatsappValid === false ? (
-                        <Badge variant="secondary" className="text-xs">Não</Badge>
+                        <Badge variant="secondary" className="text-[10px] px-1 py-0">Não</Badge>
                       ) : '-'}
                     </TableCell>
                   </>
