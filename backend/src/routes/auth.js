@@ -147,6 +147,51 @@ router.post('/extension-login', async (req, res) => {
   }
 });
 
+// Login por token SSO (para integração com outros sistemas)
+router.post('/token-login', async (req, res) => {
+  try {
+    const { email, apiKey } = req.body;
+
+    if (!email || !apiKey) {
+      return res.status(400).json({ message: 'Email e apiKey são obrigatórios' });
+    }
+
+    // Validar chave secreta compartilhada
+    const SSO_SECRET = process.env.SSO_API_KEY || process.env.JWT_SECRET;
+    if (apiKey !== SSO_SECRET) {
+      return res.status(401).json({ message: 'Chave de API inválida' });
+    }
+
+    // Buscar usuário pelo email
+    const result = await db.query(
+      'SELECT id, email, name, role, plan_id, created_at FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Usuário não encontrado' });
+    }
+
+    const user = result.rows[0];
+    const token = generateToken(user.id);
+
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        planId: user.plan_id,
+        createdAt: user.created_at
+      },
+      token
+    });
+  } catch (error) {
+    console.error('Erro no token-login:', error);
+    res.status(500).json({ message: 'Erro ao autenticar via token' });
+  }
+});
+
 // Obter usuário atual
 router.get('/me', authenticate, async (req, res) => {
   try {

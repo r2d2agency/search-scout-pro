@@ -8,6 +8,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (credentials: LoginCredentials) => Promise<boolean>;
+  loginWithToken: (token: string) => Promise<boolean>;
   register: (data: RegisterData) => Promise<boolean>;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
@@ -88,6 +89,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const loginWithToken = async (token: string): Promise<boolean> => {
+    setIsLoading(true);
+    try {
+      const userData = await authApi.tokenLogin(token);
+      setUser(userData);
+      toast({
+        title: 'Bem-vindo!',
+        description: `Olá, ${userData.name}`,
+      });
+      return true;
+    } catch (error: any) {
+      toast({
+        title: 'Erro na autenticação',
+        description: error.message || 'Token inválido',
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const logout = () => {
     authApi.logout();
     setUser(null);
@@ -109,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!user,
         isLoading,
         login,
+        loginWithToken,
         register,
         logout,
         updateUser,
