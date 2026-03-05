@@ -720,13 +720,20 @@ export default function CnpjPage() {
         const updatedLeads = viewingSaved.leads.map((lead: any) => {
           const cnpjKey = `${lead.cnpj_basico || ''}${lead.cnpj_ordem || ''}${lead.cnpj_dv || ''}`;
           const ed = finalEnrichMap.get(cnpjKey);
-          if (ed) {
+          if (ed && ed.enriched) {
             return {
               ...lead,
               googleName: ed.googleName || lead.googleName,
               enrich_google_name: ed.googleName || lead.enrich_google_name,
               enrich_phone: ed.phoneFormatted || ed.phone || lead.enrich_phone,
+              phone: ed.phone || lead.phone,
               phoneFormatted: ed.phoneFormatted || lead.phoneFormatted,
+              website: ed.website || lead.website,
+              rating: ed.rating || lead.rating,
+              ratingCount: ed.ratingCount || lead.ratingCount,
+              category: ed.category || lead.category,
+              googleMapsUrl: ed.googleMapsUrl || lead.googleMapsUrl,
+              googleAddress: ed.googleAddress || lead.googleAddress,
               enriched: true,
             };
           }
