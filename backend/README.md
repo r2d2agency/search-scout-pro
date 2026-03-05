@@ -31,6 +31,7 @@ Configure no Easypanel:
 | `FRONTEND_URL` | URL do frontend (CORS) | `https://app.seudominio.com` |
 | `PORT` | Porta da API | `3000` |
 | `NODE_ENV` | Ambiente | `production` |
+| `SSO_API_KEY` | Chave secreta para SSO com sistemas externos | `chave-secreta-compartilhada` |
 
 ### 4. Configurar Domínio
 
@@ -79,6 +80,74 @@ Configure no Easypanel:
 - Rate limiting (100 req/15min por IP)
 - Helmet para headers de segurança
 - CORS configurável
+
+## 🔗 Integração SSO com Sistemas Externos
+
+Permite que sistemas externos (ex: CRM) autentiquem usuários automaticamente no Lead Extractor.
+
+### Configuração
+
+1. Defina a variável `SSO_API_KEY` no backend com uma chave secreta forte:
+   ```env
+   SSO_API_KEY=minha-chave-secreta-muito-segura-123
+   ```
+
+2. Compartilhe essa mesma chave com o sistema externo (CRM).
+
+### Fluxo de Integração
+
+```
+CRM (backend) → POST /api/auth/token-login → Recebe JWT → Redireciona usuário
+```
+
+#### Passo 1: O CRM solicita um token JWT (backend-to-backend)
+
+```javascript
+// No backend do CRM
+const response = await fetch('https://api.seudominio.com/api/auth/token-login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    email: 'usuario@empresa.com',  // Email já cadastrado no Lead Extractor
+    apiKey: 'minha-chave-secreta-muito-segura-123'  // SSO_API_KEY
+  })
+});
+
+const { token } = await response.json();
+```
+
+#### Passo 2: Redirecionar o usuário com o token
+
+```javascript
+// No frontend do CRM, ao clicar em "Lead Gleego"
+window.open(`https://lead.seudominio.com/login?token=${token}`, '_blank');
+```
+
+O Lead Extractor detecta o `?token=` na URL, valida a sessão e autentica o usuário automaticamente.
+
+### Endpoint: POST /api/auth/token-login
+
+**Request:**
+```json
+{
+  "email": "usuario@empresa.com",
+  "apiKey": "sua-sso-api-key"
+}
+```
+
+**Response (200):**
+```json
+{
+  "user": { "id": "...", "email": "...", "name": "...", "role": "user", "planId": "free" },
+  "token": "eyJhbGciOiJIUzI1NiIs..."
+}
+```
+
+**Erros:**
+- `401` - Chave de API inválida
+- `404` - Usuário não encontrado
+
+> ⚠️ **Importante:** A chamada ao `/token-login` deve ser feita **server-side** (backend do CRM), nunca no frontend, para não expor a `SSO_API_KEY`.
 
 ## 💻 Desenvolvimento Local
 
