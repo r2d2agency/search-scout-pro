@@ -750,7 +750,31 @@ export default function CnpjPage() {
 
   const getEnrichData = (r: any) => {
     const cnpj = `${r.cnpj_basico || ''}${r.cnpj_ordem || ''}${r.cnpj_dv || ''}`;
-    return enrichResults.get(cnpj);
+    const fromMap = enrichResults.get(cnpj);
+    if (fromMap) return fromMap;
+    // Fallback: check if lead itself has enrichment data (from saved searches)
+    if (r.enriched || r.googleName || r.enrich_google_name || r.enrich_phone) {
+      return {
+        enriched: true,
+        googleName: r.googleName || r.enrich_google_name || null,
+        phone: r.phone || r.enrich_phone || null,
+        phoneFormatted: r.phoneFormatted || r.enrich_phone || null,
+        whatsappValid: r.whatsappValid ?? r.enrich_whatsapp_valid ?? null,
+        website: r.website || null,
+        rating: r.rating || null,
+        ratingCount: r.ratingCount || null,
+        category: r.category || null,
+        googleMapsUrl: r.googleMapsUrl || null,
+        googleAddress: r.googleAddress || null,
+      };
+    }
+    return null;
+  };
+
+  // Check if any results have enrichment data (from Map or saved fields)
+  const hasAnyEnrichData = (results: any[]) => {
+    if (enrichResults.size > 0) return true;
+    return results.some((r: any) => r.enriched || r.googleName || r.enrich_google_name || r.enrich_phone);
   };
 
   // Selection helpers
@@ -901,7 +925,7 @@ export default function CnpjPage() {
           <TableHead>Telefone</TableHead>
           <TableHead>Abertura</TableHead>
           <TableHead>Situação</TableHead>
-          {enrichResults.size > 0 && (
+          {hasAnyEnrichData(results) && (
             <>
               <TableHead>Google Nome</TableHead>
               <TableHead>Google Tel</TableHead>
@@ -913,7 +937,7 @@ export default function CnpjPage() {
       <TableBody>
         {results.map((r: any, i: number) => {
           const key = getResultKey(r, i);
-          const ed = enrichResults.size > 0 ? getEnrichData(r) : null;
+          const ed = getEnrichData(r);
           return (
             <TableRow key={key} className={cn(selectedIds.has(key) && 'bg-primary/5')}>
               <TableCell>
@@ -944,7 +968,7 @@ export default function CnpjPage() {
                   {r.situacao_cadastral === '02' ? 'Ativa' : r.situacao_cadastral}
                 </Badge>
               </TableCell>
-              {enrichResults.size > 0 && (() => {
+              {hasAnyEnrichData(results) && (() => {
                 return (
                   <>
                     <TableCell className="max-w-[150px] truncate text-sm">
