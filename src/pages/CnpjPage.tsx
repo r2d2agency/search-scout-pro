@@ -17,6 +17,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Table,
   TableBody,
   TableCell,
@@ -200,10 +210,17 @@ export default function CnpjPage() {
       .finally(() => setIsNameMunicipiosLoading(false));
   }, [nameSearchFilters.uf]);
 
-  // Enrich state
+   // Enrich state
   const [isEnriching, setIsEnriching] = useState(false);
   const [enrichProgress, setEnrichProgress] = useState({ current: 0, total: 0 });
   const [enrichResults, setEnrichResults] = useState<Map<string, any>>(new Map());
+  
+  // WhatsApp check state
+  const [showWhatsAppDialog, setShowWhatsAppDialog] = useState(false);
+  const [whatsAppCheckLeads, setWhatsAppCheckLeads] = useState<any[]>([]);
+  const [isCheckingWhatsApp, setIsCheckingWhatsApp] = useState(false);
+  const [whatsAppProgress, setWhatsAppProgress] = useState({ current: 0, total: 0 });
+  const [whatsAppCheckContext, setWhatsAppCheckContext] = useState<'search' | 'saved'>('search');
 
   const resultsRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
@@ -595,7 +612,7 @@ export default function CnpjPage() {
     }
   };
 
-  const handleEnrich = useCallback(async (leads: any[], checkWhatsapp = true): Promise<Map<string, any>> => {
+  const handleEnrich = useCallback(async (leads: any[], context: 'search' | 'saved' = 'search'): Promise<Map<string, any>> => {
     if (leads.length === 0) {
       toast({ title: 'Nenhum lead para enriquecer', variant: 'destructive' });
       return new Map();
@@ -607,18 +624,26 @@ export default function CnpjPage() {
       const allResults = new Map(enrichResults);
       for (let i = 0; i < leads.length; i += BATCH_SIZE) {
         const batch = leads.slice(i, i + BATCH_SIZE);
-        const response = await enrichApi.enrich(batch, checkWhatsapp);
+        const response = await enrichApi.enrich(batch, false); // Never check WhatsApp during enrich
         response.results.forEach((r: any) => allResults.set(r.cnpj, r));
         setEnrichResults(new Map(allResults));
         setEnrichProgress({ current: Math.min(i + BATCH_SIZE, leads.length), total: leads.length });
       }
       const enrichedCount = Array.from(allResults.values()).filter(r => r.enriched).length;
       const withPhone = Array.from(allResults.values()).filter(r => r.phone).length;
-      const withWhatsapp = Array.from(allResults.values()).filter(r => r.whatsappValid === true).length;
       toast({
         title: 'Enriquecimento concluído!',
-        description: `${enrichedCount} encontrados no Google · ${withPhone} com telefone · ${withWhatsapp} com WhatsApp`,
+        description: `${enrichedCount} encontrados no Google · ${withPhone} com telefone`,
       });
+      
+      // If there are leads with phone numbers, ask about WhatsApp check
+      const leadsWithPhone = Array.from(allResults.values()).filter(r => r.phone && r.whatsappValid === null);
+      if (leadsWithPhone.length > 0) {
+        setWhatsAppCheckLeads(leadsWithPhone);
+        setWhatsAppCheckContext(context);
+        setShowWhatsAppDialog(true);
+      }
+      
       return allResults;
     } catch (error: any) {
       toast({ title: 'Erro no enriquecimento', description: error.message, variant: 'destructive' });
@@ -628,18 +653,67 @@ export default function CnpjPage() {
     }
   }, [enrichResults]);
 
+  const handleWhatsAppCheck = useCallback(async () => {
+    setShowWhatsAppDialog(false);
+    setIsCheckingWhatsApp(true);
+    setWhatsAppProgress({ current: 0, total: whatsAppCheckLeads.length });
+    
+    const updatedResults = new Map(enrichResults);
+    let validCount = 0;
+    
+    for (let i = 0; i < whatsAppCheckLeads.length; i++) {
+      const lead = whatsAppCheckLeads[i];
+      try {
+        const result = await enrichApi.checkWhatsApp(lead.phone);
+        const updated = { ...lead, whatsappValid: result.whatsappValid };
+        updatedResults.set(lead.cnpj, updated);
+        if (result.whatsappValid === true) validCount++;
+      } catch (error: any) {
+        console.error('Erro WhatsApp check:', error.message);
+      }
+      setWhatsAppProgress({ current: i + 1, total: whatsAppCheckLeads.length });
+      setEnrichResults(new Map(updatedResults));
+      // Delay between checks
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    setIsCheckingWhatsApp(false);
+    toast({
+      title: 'Verificação WhatsApp concluída!',
+      description: `${validCount} de ${whatsAppCheckLeads.length} números são WhatsApp`,
+    });
+    
+    // If in saved context, persist the WhatsApp results
+    if (whatsAppCheckContext === 'saved' && viewingSaved) {
+      try {
+        const updatedLeads = viewingSaved.leads.map((l: any) => {
+          const cnpjKey = `${l.cnpj_basico || ''}${l.cnpj_ordem || ''}${l.cnpj_dv || ''}`;
+          const ed = updatedResults.get(cnpjKey);
+          if (ed) {
+            return { ...l, enrich_whatsapp_valid: ed.whatsappValid, whatsappValid: ed.whatsappValid };
+          }
+          return l;
+        });
+        await savedSearchesApi.update(viewingSaved.id, { leads: updatedLeads });
+        setViewingSaved({ ...viewingSaved, leads: updatedLeads });
+      } catch (error: any) {
+        console.error('Erro ao salvar WhatsApp:', error.message);
+      }
+    }
+  }, [whatsAppCheckLeads, enrichResults, whatsAppCheckContext, viewingSaved]);
+
   const handleEnrichSearch = () => {
     const toEnrich = selectedSearchIds.size > 0
       ? accumulatedResults.filter((r, i) => selectedSearchIds.has(getResultKey(r, i)))
       : accumulatedResults;
-    handleEnrich(toEnrich);
+    handleEnrich(toEnrich, 'search');
   };
 
   const handleEnrichSaved = async () => {
     const toEnrich = selectedSavedIds.size > 0
       ? filteredSavedResults.filter((r: any, i: number) => selectedSavedIds.has(getResultKey(r, i)))
       : filteredSavedResults;
-    const finalEnrichMap = await handleEnrich(toEnrich);
+    const finalEnrichMap = await handleEnrich(toEnrich, 'saved');
     // Persist enriched data back to saved query
     if (viewingSaved && finalEnrichMap.size > 0) {
       try {
@@ -653,8 +727,6 @@ export default function CnpjPage() {
               enrich_google_name: ed.googleName || lead.enrich_google_name,
               enrich_phone: ed.phoneFormatted || ed.phone || lead.enrich_phone,
               phoneFormatted: ed.phoneFormatted || lead.phoneFormatted,
-              enrich_whatsapp_valid: ed.whatsappValid ?? lead.enrich_whatsapp_valid,
-              whatsappValid: ed.whatsappValid ?? lead.whatsappValid,
               enriched: true,
             };
           }
@@ -1673,6 +1745,43 @@ export default function CnpjPage() {
           toast({ title: 'CNAE aplicado', description: `CNAE ${code} preenchido na pesquisa por CNAE` });
         }}
       />
+
+      {/* WhatsApp Check Dialog */}
+      <AlertDialog open={showWhatsAppDialog} onOpenChange={setShowWhatsAppDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-green-500" />
+              Verificar WhatsApp?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Foram encontrados <strong>{whatsAppCheckLeads.length}</strong> números de telefone no enriquecimento. 
+              Deseja verificar um por um se são números de WhatsApp válidos usando a Evolution API?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Não, obrigado</AlertDialogCancel>
+            <AlertDialogAction onClick={handleWhatsAppCheck} className="bg-green-600 hover:bg-green-700">
+              <MessageCircle className="h-4 w-4 mr-1" />
+              Sim, verificar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* WhatsApp Check Progress */}
+      {isCheckingWhatsApp && (
+        <div className="fixed bottom-4 right-4 z-50 bg-card border rounded-lg shadow-lg p-4 w-80">
+          <div className="flex items-center gap-2 mb-2">
+            <Loader2 className="h-4 w-4 animate-spin text-green-500" />
+            <span className="text-sm font-medium">Verificando WhatsApp...</span>
+          </div>
+          <Progress value={(whatsAppProgress.current / whatsAppProgress.total) * 100} className="h-2" />
+          <p className="text-xs text-muted-foreground mt-1">
+            {whatsAppProgress.current} de {whatsAppProgress.total} números verificados
+          </p>
+        </div>
+      )}
     </div>
   );
 }

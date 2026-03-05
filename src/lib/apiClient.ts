@@ -587,4 +587,10 @@ export const enrichApi = {
       body: JSON.stringify({ leads, checkWhatsapp }),
     });
   },
+  async checkWhatsApp(phone: string) {
+    return apiRequest<{ phone: string; whatsappValid: boolean | null }>('/enrich/whatsapp', {
+      method: 'POST',
+      body: JSON.stringify({ phone }),
+    });
+  },
 };
