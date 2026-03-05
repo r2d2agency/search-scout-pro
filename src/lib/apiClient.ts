@@ -76,6 +76,11 @@ export const authApi = {
     return apiRequest<any>('/auth/me');
   },
 
+  async tokenLogin(token: string) {
+    setAuthToken(token);
+    return authApi.me();
+  },
+
   logout() {
     setAuthToken(null);
   },

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBrand } from '@/hooks/useBrand';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader } from '@/components/ui/card';
@@ -11,11 +11,22 @@ import defaultLogo from '@/assets/logo.png';
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { login, isLoading } = useAuth();
+  const [searchParams] = useSearchParams();
+  const { login, loginWithToken, isLoading } = useAuth();
   const { brand } = useBrand();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  // SSO: auto-login via token na URL
+  useEffect(() => {
+    const token = searchParams.get('token');
+    if (token) {
+      loginWithToken(token).then((success) => {
+        if (success) navigate('/');
+      });
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
