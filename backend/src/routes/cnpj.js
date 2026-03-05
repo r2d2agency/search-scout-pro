@@ -193,9 +193,6 @@ router.post('/search', authenticate, async (req, res) => {
     if (!uf) {
       return res.status(400).json({ message: 'UF é obrigatório' });
     }
-    if (cnae && !municipio) {
-      return res.status(400).json({ message: 'Município é obrigatório para pesquisa por CNAE' });
-    }
     if (!cnae && !razaoSocialTerm && !nomeFantasiaTerm) {
       return res.status(400).json({ message: 'Informe pelo menos CNAE, Razão Social ou Nome Fantasia' });
     }

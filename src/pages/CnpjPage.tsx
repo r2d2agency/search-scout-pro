@@ -251,7 +251,7 @@ export default function CnpjPage() {
   // Validation for CNAE search
   const filterValidationError = useMemo(() => {
     if (!searchFilters.uf) return 'Selecione o Estado (UF) — campo obrigatório';
-    if (!searchFilters.municipio.trim()) return 'Informe o Município — campo obrigatório';
+    
     if (!searchFilters.cnae.trim()) return 'Informe o CNAE — campo obrigatório';
     return null;
   }, [searchFilters.uf, searchFilters.municipio, searchFilters.cnae]);
