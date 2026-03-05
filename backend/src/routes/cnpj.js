@@ -113,7 +113,7 @@ async function doGleegoSearch(apiToken, params) {
   const url = `https://cnpj.gleego.com.br/api/v1/search?${params.toString()}`;
   console.log('Gleego search URL:', url);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+  const timeout = setTimeout(() => controller.abort(), 90000); // 90s timeout
   try {
     const response = await fetch(url, {
       headers: {
