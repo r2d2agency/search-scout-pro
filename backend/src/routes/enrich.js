@@ -227,4 +227,25 @@ router.post('/', authenticate, async (req, res) => {
   }
 });
 
+// POST /enrich/whatsapp - Verificar WhatsApp para um telefone
+router.post('/whatsapp', authenticate, async (req, res) => {
+  try {
+    const { phone } = req.body;
+    if (!phone) {
+      return res.status(400).json({ message: 'Telefone é obrigatório' });
+    }
+
+    const evolutionConfig = await getEvolutionConfig();
+    if (!evolutionConfig.url || !evolutionConfig.apiKey || !evolutionConfig.instance) {
+      return res.status(503).json({ message: 'Evolution API não configurada. Configure nas configurações do admin.' });
+    }
+
+    const result = await checkWhatsApp(phone, evolutionConfig);
+    res.json({ phone, whatsappValid: result });
+  } catch (error) {
+    console.error('Erro ao verificar WhatsApp:', error);
+    res.status(500).json({ message: 'Erro ao verificar WhatsApp' });
+  }
+});
+
 module.exports = router;
