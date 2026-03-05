@@ -27,14 +27,27 @@ async function checkWhatsApp(phone, evolutionConfig) {
   }
 
   try {
-    // Formatar número para formato internacional brasileiro
+    // Sanitizar: remover tudo que não é dígito
     let number = phone.replace(/\D/g, '');
-    if (number.length === 10 || number.length === 11) {
+    
+    // Remover zero à esquerda se começar com 0 (ex: 011...)
+    if (number.startsWith('0')) {
+      number = number.substring(1);
+    }
+    
+    // Se já começa com 55 e tem 12-13 dígitos (55 + DDD + número), está ok
+    // Se tem 10-11 dígitos (DDD + número), adicionar 55
+    // Se tem 8-9 dígitos (só número sem DDD), não dá pra validar
+    if (number.startsWith('55') && (number.length === 12 || number.length === 13)) {
+      // já está no formato correto
+    } else if (number.length === 10 || number.length === 11) {
+      // DDD + número (fixo 10, celular 11)
+      number = '55' + number;
+    } else if (!number.startsWith('55')) {
       number = '55' + number;
     }
-    if (!number.startsWith('55')) {
-      number = '55' + number;
-    }
+    
+    console.log(`WhatsApp check: original="${phone}" -> sanitizado="${number}"`);
 
     const url = `${evolutionConfig.url}/chat/whatsappNumbers/${evolutionConfig.instance}`;
     const response = await fetch(url, {
