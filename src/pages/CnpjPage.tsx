@@ -96,7 +96,7 @@ const DATE_PRESETS = [
 ];
 
 function toApiDate(date: Date): string {
-  return format(date, 'yyyy-MM-dd');
+  return format(date, 'yyyyMMdd');
 }
 
 export default function CnpjPage() {
