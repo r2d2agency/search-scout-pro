@@ -50,6 +50,7 @@ async function checkWhatsApp(phone, evolutionConfig) {
     console.log(`WhatsApp check: original="${phone}" -> sanitizado="${number}"`);
 
     const url = `${evolutionConfig.url}/chat/whatsappNumbers/${evolutionConfig.instance}`;
+    console.log(`Evolution API URL: ${url}`);
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -60,15 +61,36 @@ async function checkWhatsApp(phone, evolutionConfig) {
     });
 
     if (!response.ok) {
-      console.error('Evolution API error:', response.status);
+      const errorBody = await response.text();
+      console.error('Evolution API error:', response.status, errorBody);
       return null;
     }
 
     const data = await response.json();
-    // A resposta geralmente é um array com { exists, jid, number }
+    console.log(`Evolution API response for ${number}:`, JSON.stringify(data));
+    
+    // A Evolution API pode retornar em diferentes formatos:
+    // 1) Array: [{ exists: true, jid: "...", number: "..." }]
+    // 2) Objeto com array: { numbers: [{ exists: true, ... }] }  
+    // 3) Objeto direto: { exists: true, ... }
+    
+    let resultItem = null;
     if (Array.isArray(data) && data.length > 0) {
-      return data[0].exists === true;
+      resultItem = data[0];
+    } else if (data?.numbers && Array.isArray(data.numbers) && data.numbers.length > 0) {
+      resultItem = data.numbers[0];
+    } else if (data && typeof data === 'object' && 'exists' in data) {
+      resultItem = data;
     }
+    
+    if (resultItem) {
+      // Checar variações: exists, numberExists, isWhatsapp
+      const exists = resultItem.exists === true || resultItem.numberExists === true || resultItem.isWhatsapp === true;
+      console.log(`WhatsApp result for ${number}: exists=${exists}`, resultItem);
+      return exists;
+    }
+    
+    console.log(`WhatsApp: nenhum resultado interpretável para ${number}`);
     return false;
   } catch (error) {
     console.error('Erro ao verificar WhatsApp:', error.message);
