@@ -372,7 +372,12 @@ export default function CnpjPage() {
       }
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
     } catch (error: any) {
-      toast({ title: 'Erro na pesquisa', description: error.message, variant: 'destructive' });
+      const msg = error?.message || '';
+      if (msg.includes('504') || msg.includes('timeout') || msg.includes('Timeout')) {
+        toast({ title: 'Tempo esgotado', description: 'A pesquisa é muito ampla. Tente adicionar um Município ou reduzir o período de data.', variant: 'destructive' });
+      } else {
+        toast({ title: 'Erro na pesquisa', description: msg, variant: 'destructive' });
+      }
     } finally {
       setIsSearchLoading(false);
     }
