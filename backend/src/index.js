@@ -155,21 +155,21 @@ app.use('/api/', (req, res, next) => {
 });
 
 // Routes
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/plans', plansRoutes);
 app.use('/api/leads', leadsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/serp-keys', serpKeysRoutes);
 app.use('/api/apify-keys', apifyKeysRoutes);
-app.use('/api/search', searchRoutes);
+app.use('/api/search', searchLimiter, searchRoutes);
 app.use('/api/saved-searches', savedSearchesRoutes);
-app.use('/api/instagram', instagramRoutes);
-app.use('/api/instagram-firecrawl', instagramFirecrawlRoutes);
-app.use('/api/linkedin', linkedinRoutes);
+app.use('/api/instagram', searchLimiter, instagramRoutes);
+app.use('/api/instagram-firecrawl', searchLimiter, instagramFirecrawlRoutes);
+app.use('/api/linkedin', searchLimiter, linkedinRoutes);
 app.use('/api/firecrawl-keys', firecrawlKeysRoutes);
-app.use('/api/cnpj', cnpjRoutes);
-app.use('/api/enrich', enrichRoutes);
+app.use('/api/cnpj', searchLimiter, cnpjRoutes);
+app.use('/api/enrich', enrichLimiter, enrichRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
