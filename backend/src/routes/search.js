@@ -83,28 +83,27 @@ router.post('/', authenticate, async (req, res) => {
     }
 
     // Fazer requisição ao endpoint Places da Serper.dev (Google Meu Negócio)
-    // A API Serper (Places) geralmente retorna no máximo 10 a 20 resultados.
-    // Vamos fixar em 10 para garantir consistência na paginação e evitar "pulos".
-    const RESULTS_PER_PAGE = 10; 
-    const start = (page - 1) * RESULTS_PER_PAGE;
-    
+    const serpBody = {
+      q: query,
+      gl: 'br',
+      hl: 'pt-br',
+    };
+
+    // Só adiciona paginação se não for a primeira página
+    if (page > 1) {
+      serpBody.page = page;
+    }
+
+    console.log('Serper Places Request:', serpBody);
+
     const serpResponse = await fetch('https://google.serper.dev/places', {
       method: 'POST',
       headers: {
         'X-API-KEY': apiKey,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        q: query,
-        gl: 'br',
-        hl: 'pt-br',
-        num: RESULTS_PER_PAGE, // Solicita 10 (limite seguro)
-        start: start,
-        page: page
-      })
+      body: JSON.stringify(serpBody)
     });
-
-    console.log('Serper Places Request:', { query, page, num: RESULTS_PER_PAGE, start });
 
     // Tratar resposta
     const raw = await serpResponse.text();
@@ -147,41 +146,101 @@ router.post('/', authenticate, async (req, res) => {
       credits: serpData.credits,
     });
 
-    // Extrair leads dos resultados Places (Google Meu Negócio)
-    const placesResults = serpData.places || [];
-    
-    console.log('Places encontrados:', placesResults.length);
-    if (placesResults.length > 0) {
-      console.log('Exemplo de place:', JSON.stringify(placesResults[0], null, 2));
+    let placesResults = serpData.places || [];
+
+    // FALLBACK: Se Places não retornou nada, tenta busca orgânica
+    if (placesResults.length === 0) {
+      console.log('Places sem resultados, tentando busca orgânica...');
+      
+      const organicResponse = await fetch('https://google.serper.dev/search', {
+        method: 'POST',
+        headers: {
+          'X-API-KEY': apiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          q: query,
+          gl: 'br',
+          hl: 'pt-br',
+          num: 20,
+          page: page,
+        })
+      });
+
+      const organicRaw = await organicResponse.text();
+      let organicData;
+      try {
+        organicData = organicRaw ? JSON.parse(organicRaw) : {};
+      } catch (e) {
+        organicData = {};
+      }
+
+      if (organicResponse.ok) {
+        console.log('Serper Organic Response:', {
+          organic: organicData.organic?.length || 0,
+          places: organicData.places?.length || 0,
+        });
+
+        // A busca orgânica pode trazer places embutidos + resultados orgânicos
+        placesResults = organicData.places || [];
+        
+        const organicResults = organicData.organic || [];
+        const leads = [];
+
+        // Primeiro adiciona places se houver
+        for (const result of placesResults) {
+          const lead = extractLeadFromPlaces(result, query);
+          if (lead) leads.push(lead);
+        }
+
+        // Depois adiciona orgânicos
+        for (const result of organicResults) {
+          const lead = extractLeadFromResult(result, query, 'organic');
+          if (lead) leads.push(lead);
+        }
+
+        const hasMore = organicResults.length >= 10 || placesResults.length >= 5;
+
+        return res.json({
+          leads,
+          pagination: {
+            currentPage: page,
+            totalResults: leads.length,
+            hasMore,
+            nextPageToken: null
+          },
+          searchMetadata: {
+            searchId: null,
+            totalResults: leads.length,
+            timeTaken: organicData.searchParameters?.timeTaken || null,
+            source: 'google_organic_fallback'
+          }
+        });
+      }
     }
     
+    // Processar resultados Places normalmente
     const leads = [];
-    
-    // Processar resultados do Google Meu Negócio
     for (const result of placesResults) {
       const lead = extractLeadFromPlaces(result, query);
       if (lead) leads.push(lead);
     }
 
-    // Informações de paginação
-    // Se vieram resultados (pelo menos 10), assumimos que pode haver mais.
-    // Como ajustamos o bloco para 10, se vierem 10, habilita o botão.
     const hasMoreResults = placesResults.length >= 10;
     
-    const pagination = {
-      currentPage: page,
-      totalResults: leads.length, // Total nesta página
-      hasMore: hasMoreResults,
-      nextPageToken: null
-    };
-
     res.json({
       leads,
-      pagination,
+      pagination: {
+        currentPage: page,
+        totalResults: leads.length,
+        hasMore: hasMoreResults,
+        nextPageToken: null
+      },
       searchMetadata: {
         searchId: null,
         totalResults: leads.length,
-        timeTaken: serpData.searchParameters?.timeTaken || null
+        timeTaken: serpData.searchParameters?.timeTaken || null,
+        source: 'google_places'
       }
     });
 
