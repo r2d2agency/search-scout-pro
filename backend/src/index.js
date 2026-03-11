@@ -70,12 +70,89 @@ app.use(helmet({
 
 app.use(express.json({ limit: '10mb' }));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100 // limite por IP
+// ============ Rate Limiting com log detalhado ============
+
+// Função para extrair identificação do usuário (IP + token se disponível)
+const identifyUser = (req) => {
+  const ip = req.ip || req.connection.remoteAddress;
+  const authHeader = req.headers.authorization;
+  let userId = 'anon';
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const jwt = require('jsonwebtoken');
+      const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'your-secret-key');
+      userId = decoded.userId || 'unknown';
+    } catch (e) {
+      userId = 'invalid-token';
+    }
+  }
+  return { ip, userId };
+};
+
+// Handler quando alguém é bloqueado pelo rate limit
+const rateLimitHandler = (routeName) => (req, res) => {
+  const { ip, userId } = identifyUser(req);
+  console.warn(`🚫 RATE LIMIT [${routeName}] | IP: ${ip} | User: ${userId} | Route: ${req.method} ${req.originalUrl} | Time: ${new Date().toISOString()}`);
+  res.status(429).json({
+    message: 'Muitas requisições. Aguarde um momento antes de tentar novamente.',
+    retryAfter: 60
+  });
+};
+
+// Rate limit GERAL - 300 req / 15 min por IP (permissivo)
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler('GERAL'),
+  keyGenerator: (req) => req.ip,
 });
-app.use('/api/', limiter);
+app.use('/api/', generalLimiter);
+
+// Rate limit para AUTH - 20 req / 15 min (previne brute force)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler('AUTH'),
+  keyGenerator: (req) => req.ip,
+});
+
+// Rate limit para SEARCH - 60 req / 15 min (busca consome API externa)
+const searchLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler('SEARCH'),
+  keyGenerator: (req) => req.ip,
+});
+
+// Rate limit para ENRICH - 30 req / 15 min (enriquecimento é pesado)
+const enrichLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler('ENRICH'),
+  keyGenerator: (req) => req.ip,
+});
+
+// Log de requisições para monitoramento (resumido)
+app.use('/api/', (req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    // Loga apenas requisições lentas (>2s) ou erros
+    if (duration > 2000 || res.statusCode >= 400) {
+      const { ip, userId } = identifyUser(req);
+      console.log(`⚡ ${res.statusCode} | ${duration}ms | ${req.method} ${req.originalUrl} | IP: ${ip} | User: ${userId}`);
+    }
+  });
+  next();
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
