@@ -70,85 +70,94 @@ app.use(helmet({
 
 app.use(express.json({ limit: '10mb' }));
 
-// ============ Rate Limiting com log detalhado ============
+// ============ Rate Limiting por USUÁRIO (não por IP) ============
 
-// Função para extrair identificação do usuário (IP + token se disponível)
-const identifyUser = (req) => {
-  const ip = req.ip || req.connection.remoteAddress;
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+// Extrai userId do token JWT para identificar o usuário
+const getUserIdFromReq = (req) => {
   const authHeader = req.headers.authorization;
-  let userId = 'anon';
   if (authHeader && authHeader.startsWith('Bearer ')) {
     try {
-      const jwt = require('jsonwebtoken');
-      const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'your-secret-key');
-      userId = decoded.userId || 'unknown';
+      const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+      return decoded.userId || null;
     } catch (e) {
-      userId = 'invalid-token';
+      return null;
     }
   }
-  return { ip, userId };
+  return null;
 };
 
-// Handler quando alguém é bloqueado pelo rate limit
+// Key generator: usa userId se autenticado, senão IP (apenas para rotas públicas)
+const keyByUser = (req) => {
+  const userId = getUserIdFromReq(req);
+  return userId || req.ip || 'unknown';
+};
+
+// Key generator: sempre por IP (para rotas de auth/login - brute force protection)
+const keyByIP = (req) => req.ip || 'unknown';
+
+// Handler quando alguém é bloqueado
 const rateLimitHandler = (routeName) => (req, res) => {
-  const { ip, userId } = identifyUser(req);
-  console.warn(`🚫 RATE LIMIT [${routeName}] | IP: ${ip} | User: ${userId} | Route: ${req.method} ${req.originalUrl} | Time: ${new Date().toISOString()}`);
+  const userId = getUserIdFromReq(req);
+  const ip = req.ip;
+  console.warn(`🚫 RATE LIMIT [${routeName}] | IP: ${ip} | User: ${userId || 'anon'} | ${req.method} ${req.originalUrl} | ${new Date().toISOString()}`);
   res.status(429).json({
     message: 'Muitas requisições. Aguarde um momento antes de tentar novamente.',
     retryAfter: 60
   });
 };
 
-// Rate limit GERAL - 300 req / 15 min por IP (permissivo)
+// GERAL - 1000 req / 15 min POR USUÁRIO (bem permissivo)
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 300,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   handler: rateLimitHandler('GERAL'),
-  keyGenerator: (req) => req.ip,
+  keyGenerator: keyByUser,
 });
 app.use('/api/', generalLimiter);
 
-// Rate limit para AUTH - 20 req / 15 min (previne brute force)
+// AUTH - 30 req / 15 min POR IP (proteção brute force, mantém por IP)
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: rateLimitHandler('AUTH'),
-  keyGenerator: (req) => req.ip,
-});
-
-// Rate limit para SEARCH - 60 req / 15 min (busca consome API externa)
-const searchLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 60,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: rateLimitHandler('SEARCH'),
-  keyGenerator: (req) => req.ip,
-});
-
-// Rate limit para ENRICH - 30 req / 15 min (enriquecimento é pesado)
-const enrichLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: rateLimitHandler('ENRICH'),
-  keyGenerator: (req) => req.ip,
+  handler: rateLimitHandler('AUTH'),
+  keyGenerator: keyByIP,
 });
 
-// Log de requisições para monitoramento (resumido)
+// SEARCH - 120 req / 15 min POR USUÁRIO
+const searchLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler('SEARCH'),
+  keyGenerator: keyByUser,
+});
+
+// ENRICH - 60 req / 15 min POR USUÁRIO
+const enrichLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler('ENRICH'),
+  keyGenerator: keyByUser,
+});
+
+// Log apenas requisições problemáticas
 app.use('/api/', (req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
     const duration = Date.now() - start;
-    // Loga apenas requisições lentas (>2s) ou erros
     if (duration > 2000 || res.statusCode >= 400) {
-      const { ip, userId } = identifyUser(req);
-      console.log(`⚡ ${res.statusCode} | ${duration}ms | ${req.method} ${req.originalUrl} | IP: ${ip} | User: ${userId}`);
+      const userId = getUserIdFromReq(req);
+      console.log(`⚡ ${res.statusCode} | ${duration}ms | ${req.method} ${req.originalUrl} | IP: ${req.ip} | User: ${userId || 'anon'}`);
     }
   });
   next();
