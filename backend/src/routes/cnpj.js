@@ -111,10 +111,15 @@ function formatCnaeVariants(cnae) {
 // Helper: fazer a chamada de search na Gleego com timeout
 async function doGleegoSearch(apiToken, params) {
   const url = `https://cnpj.gleego.com.br/api/v1/search?${params.toString()}`;
-  console.log('Gleego search URL:', url);
+  console.log('--- GLEECO SEARCH START ---');
+  console.log('Target URL:', url);
+  console.log('Query Params:', Object.fromEntries(params.entries()));
+  
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 90000); // 90s timeout
+  
   try {
+    const startTime = Date.now();
     const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${apiToken}`,
@@ -123,9 +128,21 @@ async function doGleegoSearch(apiToken, params) {
       },
       signal: controller.signal
     });
+    
+    const duration = Date.now() - startTime;
+    console.log(`Gleego search completed in ${duration}ms | Status: ${response.status} ${response.statusText}`);
+    
     return response;
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      console.error('GLEECO SEARCH TIMEOUT (90s) - URL:', url);
+    } else {
+      console.error('GLEECO SEARCH FETCH ERROR:', err.message, '| URL:', url);
+    }
+    throw err;
   } finally {
     clearTimeout(timeout);
+    console.log('--- GLEECO SEARCH END ---');
   }
 }
 
@@ -276,8 +293,15 @@ router.post('/search', authenticate, async (req, res) => {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Erro API CNPJ Search:', response.status, errorText);
-        return res.status(response.status).json({ message: 'Erro na pesquisa de CNPJ', details: errorText });
+        console.error('--- GLEECO ERROR RESPONSE ---');
+        console.error('Status:', response.status);
+        console.error('Body:', errorText);
+        console.error('--- END ERROR ---');
+        return res.status(response.status).json({ 
+          message: 'Erro na pesquisa de CNPJ via API Gleego', 
+          details: errorText,
+          status: response.status 
+        });
       }
 
       try {
